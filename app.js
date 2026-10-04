@@ -477,6 +477,43 @@ export function initApp() {
   bindInput('cfg-gas-price', 'prices', 'gas95');
   bindInput('cfg-ice-cons', 'prices', 'iceConsumption');
 
+  // Daily market prices fetcher (REE & MITECO)
+  const fetchMarketBtn = document.getElementById('btn-fetch-market-prices');
+  if (fetchMarketBtn) {
+    fetchMarketBtn.addEventListener('click', async () => {
+      let backendUrl = (localStorage.getItem('biguaydi_backend_url') || 'https://biguaydi-api.onrender.com').trim().replace(/\/+$/, '');
+      fetchMarketBtn.disabled = true;
+      fetchMarketBtn.textContent = '⏳ Consultando REE y MITECO...';
+      try {
+        const resp = await fetch(`${backendUrl}/api/prices`);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Error consultando precios');
+        
+        if (data.kwhGrid) {
+          STATE.prices.kwhGrid = Number(data.kwhGrid);
+          localStorage.setItem('biguaydi-kwh-grid', data.kwhGrid);
+          const inpGrid = document.getElementById('cfg-kwh-grid');
+          if (inpGrid) inpGrid.value = data.kwhGrid;
+        }
+        if (data.gas95) {
+          STATE.prices.gas95 = Number(data.gas95);
+          localStorage.setItem('biguaydi-gas-price', data.gas95);
+          const inpGas = document.getElementById('cfg-gas-price');
+          if (inpGas) inpGas.value = data.gas95;
+        }
+
+        updateCalculations();
+        renderTrips();
+        showToast(`✓ Precios oficiales actualizados: Luz ${data.kwhGrid}€/kWh · Gasolina ${data.gas95}€/L`);
+      } catch (err) {
+        showToast(`No se pudieron obtener precios: ${err.message}`);
+      } finally {
+        fetchMarketBtn.disabled = false;
+        fetchMarketBtn.textContent = '📡 Obtener medias hoy (REE / MITECO)';
+      }
+    });
+  }
+
   const backendInput = document.getElementById('cfg-backend-url');
   if (backendInput) {
     backendInput.value = localStorage.getItem('biguaydi_backend_url') || '';

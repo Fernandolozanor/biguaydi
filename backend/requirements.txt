@@ -2,3 +2,4 @@ fastapi>=0.115.0
 uvicorn>=0.30.0
 pybyd==0.0.73
 pydantic>=2.7.0
+httpx>=0.27.0

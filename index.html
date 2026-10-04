@@ -144,7 +144,12 @@
           <div class="grid-cols-2">
             <!-- INPUTS -->
             <div class="tech-panel">
-              <span class="overline">TUS TARIFAS Y FUENTE DE CARGA</span>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="overline">TUS TARIFAS Y FUENTE DE CARGA</span>
+                <button class="theme-btn" id="btn-fetch-market-prices" style="padding:4px 8px; font-size:11px;">
+                  📡 Obtener medias hoy (REE / MITECO)
+                </button>
+              </div>
               <div class="energy-chip-group" style="margin-top:14px;">
                 <div class="energy-chip selected" data-energy="solar">☀️ 100% Solar (0€)</div>
                 <div class="energy-chip" data-energy="mixed">🌗 Mixta (Solar+Red)</div>

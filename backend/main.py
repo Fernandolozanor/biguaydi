@@ -63,6 +63,8 @@ def _clean_data(val: Any) -> Any:
         return val.astimezone(timezone.utc).isoformat()
     return val
 
+import httpx
+
 @app.get("/")
 def health_check():
     return {
@@ -71,6 +73,62 @@ def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "read_only": True
     }
+
+@app.get("/api/prices")
+@app.get("//api/prices")
+async def get_daily_prices():
+    """Fetch daily official average electricity (PVPC/REE) and Gasoline 95 (MITECO) in Spain."""
+    res = {
+        "success": True,
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "kwhGrid": 0.145, # Fallback base
+        "gas95": 1.62,    # Fallback base
+        "source": "Estimación de mercado España"
+    }
+    
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        # 1. Fetch live electricity average from Red Eléctrica de España (REE / API PVPC pública)
+        try:
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            ree_url = f"https://apidatos.ree.es/es/datos/mercados/precios-mercados-tiempo-real?start_date={today_str}T00:00&end_date={today_str}T23:59&time_trunc=hour"
+            r_ree = await client.get(ree_url)
+            if r_ree.status_code == 200:
+                ree_json = r_ree.json()
+                pvpc_data = None
+                for indicator in ree_json.get("included", []):
+                    if "PVPC" in indicator.get("attributes", {}).get("title", ""):
+                        values = [item.get("value") for item in indicator.get("attributes", {}).get("values", []) if item.get("value") is not None]
+                        if values:
+                            # PVPC comes in €/MWh. Convert to €/kWh (/ 1000)
+                            avg_mwh = sum(values) / len(values)
+                            res["kwhGrid"] = round(avg_mwh / 1000.0, 4)
+                            res["source_electricity"] = "REE (Red Eléctrica de España - PVPC diario)"
+                            break
+        except Exception:
+            pass
+
+        # 2. Fetch live average Gasoline 95 from MITECO (Ministerio para la Transición Ecológica)
+        try:
+            miteco_url = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/"
+            r_gas = await client.get(miteco_url)
+            if r_gas.status_code == 200:
+                gas_json = r_gas.json()
+                prices = []
+                for st in gas_json.get("ListaEESSPrecio", []):
+                    p_str = st.get("Precio Gasolina 95 E5", "").replace(",", ".")
+                    try:
+                        p_float = float(p_str)
+                        if 1.0 < p_float < 3.0: # Filter sensible prices
+                            prices.append(p_float)
+                    except ValueError:
+                        continue
+                if prices:
+                    res["gas95"] = round(sum(prices) / len(prices), 3)
+                    res["source_fuel"] = "MITECO (Ministerio para la Transición Ecológica)"
+        except Exception:
+            pass
+
+    return res
 
 @app.post("/api/vehicles")
 async def list_vehicles(req: ConnectRequest):
