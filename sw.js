@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v2-hightech';
+const CACHE = 'biguaydi-v3-zenith-chassis';
 const ASSETS = [
   './',
   './index.html',
@@ -6,19 +6,14 @@ const ASSETS = [
   './app.js',
   './crypto-vault.js',
   './manifest.webmanifest',
-  './icon.svg',
-  './PICTURES/BYD_Dolphin_Surf_ORIGINAL.jfif',
-  './PICTURES/BYD_Dolphin_Surf_AZUL.jfif',
-  './PICTURES/BYD_Dolphin_Surf_ROJO.jfif',
-  './PICTURES/BYD_Dolphin_Surf_VERDE.jfif',
-  './PICTURES/BYD_Dolphin_Surf_VIOLETA.jfif'
+  './icon.svg'
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -30,20 +25,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Network-first strategy for app files: always get latest from GitHub, fallback to cache offline
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).then((response) => {
-          if (response.ok && event.request.url.startsWith(self.location.origin)) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        }).catch(() => caches.match('./index.html'))
-      );
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok && event.request.url.startsWith(self.location.origin)) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
   );
 });
