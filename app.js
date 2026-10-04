@@ -15,7 +15,8 @@ const STATE = {
     diesel: Number(localStorage.getItem('biguaydi-diesel')) || 1.54,
     iceConsumption: Number(localStorage.getItem('biguaydi-ice-cons')) || 6.2, // l/100km Gasoline
     dieselConsumption: Number(localStorage.getItem('biguaydi-diesel-cons')) || 5.2, // l/100km Diesel
-    fuelType: localStorage.getItem('biguaydi-fuel-type') || 'gas95' // gas95 or diesel
+    fuelType: localStorage.getItem('biguaydi-fuel-type') || 'gas95', // gas95 or diesel
+    date: localStorage.getItem('biguaydi-prices-date') || new Date().toLocaleDateString('es-ES')
   },
   // Default real or sample metrics for Dolphin Surf
   vehicle: {
@@ -217,6 +218,12 @@ function updateCalculations() {
   if (elSavingsDiesel100) elSavingsDiesel100.textContent = `${savingsDiesel100.toFixed(2)} €`;
   if (elSavingsDieselPct) elSavingsDieselPct.textContent = `-${savingsDieselPct.toFixed(0)}%`;
   if (elEffectiveRate) elEffectiveRate.textContent = `${costPerKwh.toFixed(3)} €/kWh`;
+
+  const displayDate = STATE.prices.date || localStorage.getItem('biguaydi-prices-date') || new Date().toLocaleDateString('es-ES');
+  const elPricesDate = document.getElementById('prices-update-date');
+  const elCalcPricesDate = document.getElementById('calc-prices-date');
+  if (elPricesDate) elPricesDate.textContent = displayDate;
+  if (elCalcPricesDate) elCalcPricesDate.textContent = displayDate;
 
   // Update dynamic modern 3-bar comparison chart
   const barEv = document.getElementById('calc-bar-ev');
@@ -557,6 +564,9 @@ export function initApp() {
       if (!isNaN(val)) {
         STATE[key][subkey] = val;
         localStorage.setItem(`biguaydi-${subkey}`, val);
+        const todayStr = new Date().toLocaleDateString('es-ES');
+        STATE.prices.date = todayStr;
+        localStorage.setItem('biguaydi-prices-date', todayStr);
         updateCalculations();
         renderTrips();
       }
@@ -583,6 +593,16 @@ export function initApp() {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Error consultando precios');
         
+        let dateStr = new Date().toLocaleDateString('es-ES');
+        if (data.date) {
+          const parts = data.date.split('-');
+          if (parts.length === 3) {
+            dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        STATE.prices.date = dateStr;
+        localStorage.setItem('biguaydi-prices-date', dateStr);
+
         if (data.kwhGrid) {
           STATE.prices.kwhGrid = Number(data.kwhGrid);
           localStorage.setItem('biguaydi-kwh-grid', data.kwhGrid);
@@ -604,7 +624,7 @@ export function initApp() {
 
         updateCalculations();
         renderTrips();
-        showToast(`✓ Medias hoy: Luz ${data.kwhGrid}€/kWh · Gasolina ${data.gas95}€/L · Diésel ${data.diesel}€/L`);
+        showToast(`✓ Precios oficiales actualizados (${dateStr}): Luz ${data.kwhGrid}€/kWh · Gasolina ${data.gas95}€/L · Diésel ${data.diesel}€/L`);
       } catch (err) {
         showToast(`No se pudieron obtener precios: ${err.message}`);
       } finally {

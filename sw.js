@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v5-dual-fuel-effects';
+const CACHE = 'biguaydi-v6-chart-scale-date';
 const ASSETS = [
   './',
   './index.html',
