@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071411">
+  <meta name="description" content="Bi-guay-Di · Tu BYD Dolphin Surf con datos claros, ahorro real y telemetría avanzada.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <title>Bi-guay-Di · Telemetría y Ahorro Eléctrico</title>
+</head>
+<body data-theme="original" data-size="3">
+
+  <div class="app-container">
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="sidebar">
+      <a class="brand-badge" href="#" data-target-view="dashboard">
+        <div class="brand-logo-icon">B</div>
+        <div class="brand-meta">
+          <b>Bi-guay-Di</b>
+          <small>DOLPHIN SURF</small>
+        </div>
+      </a>
+
+      <nav class="nav-menu">
+        <a class="nav-link active" href="#" data-target-view="dashboard">
+          <span class="nav-icon">📊</span>
+          <span>Cuadro de Mandos</span>
+        </a>
+        <a class="nav-link" href="#" data-target-view="calculator">
+          <span class="nav-icon">⚡</span>
+          <span>Conversión & Ahorro</span>
+        </a>
+        <a class="nav-link" href="#" data-target-view="telemetry">
+          <span class="nav-icon">🚗</span>
+          <span>Telemetría</span>
+        </a>
+        <a class="nav-link" href="#" data-target-view="trips">
+          <span class="nav-icon">⏱️</span>
+          <span>Historial Trayectos</span>
+        </a>
+        <a class="nav-link" href="#" data-target-view="settings">
+          <span class="nav-icon">⚙️</span>
+          <span>Ajustes & Bóveda</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="status-beacon"></div>
+        <span>BYD Cloud Listo</span>
+      </div>
+    </aside>
+
+    <!-- MAIN BODY -->
+    <main class="main-wrapper">
+      <!-- TOP STATUS BAR -->
+      <header class="top-bar">
+        <div class="vehicle-selector-chip">
+          <span>SURF EV</span>
+          <b>BYD Dolphin Surf</b>
+        </div>
+        <div class="top-actions">
+          <div class="mode-badge">
+            <span class="status-beacon" style="width:6px;height:6px;"></span>
+            <span>DATOS ACTIVOS</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="content-body">
+
+        <!-- 1. VIEW: DASHBOARD (CUADRO DE MANDOS) -->
+        <section class="app-view active" id="view-dashboard">
+          <div class="view-header">
+            <span class="overline">RESUMEN EN TIEMPO REAL</span>
+            <h2>Estado del Vehículo</h2>
+            <p>Monitoreo de energía, autonomía restante y rendimiento instantáneo.</p>
+          </div>
+
+          <!-- HUD HERO CARD -->
+          <div class="tech-panel hero-hud-card">
+            <!-- CIRCULAR SOC RING -->
+            <div class="hud-ring-wrapper">
+              <svg class="hud-ring-svg" viewBox="0 0 160 160">
+                <circle class="hud-ring-bg" cx="80" cy="80" r="70"></circle>
+                <circle class="hud-ring-progress" id="hud-soc-ring" cx="80" cy="80" r="70"></circle>
+              </svg>
+              <div class="hud-ring-center">
+                <small>BATERÍA</small>
+                <b id="hud-soc-val">78</b>
+                <span>% CARGA</span>
+              </div>
+            </div>
+
+            <!-- CAR RENDER & METRICS -->
+            <div class="car-hero-render">
+              <img id="car-render-img" src="PICTURES/BYD_Dolphin_Surf_ORIGINAL.jfif" alt="BYD Dolphin Surf">
+              <div class="hud-key-metrics">
+                <div class="hud-metric-pill">
+                  <small>AUTONOMÍA</small>
+                  <b id="hud-range-val">312</b><span>km</span>
+                </div>
+                <div class="hud-metric-pill">
+                  <small>ODÓMETRO</small>
+                  <b id="hud-odometer-val">14.280</b><span>km</span>
+                </div>
+                <div class="hud-metric-pill">
+                  <small>CONSUMO (50km)</small>
+                  <b id="hud-cons-val">13.8</b><span>kWh</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HIGHLIGHT CARDS -->
+          <div class="grid-cols-3">
+            <div class="tech-panel">
+              <span class="overline">AHORRO MES EN CURSO</span>
+              <h3 style="font-family:var(--display); font-size:32px; color:var(--accent); margin:8px 0;" id="calc-monthly-savings">88.4 €</h3>
+              <p style="font-size:12px; color:var(--text-muted);">Equivale a <b>3 repostajes</b> térmicos evitados.</p>
+            </div>
+            <div class="tech-panel">
+              <span class="overline">COSTO POR 100 KM</span>
+              <h3 style="font-family:var(--display); font-size:32px; color:var(--text); margin:8px 0;" id="calc-ev-cost-100">2.07 €</h3>
+              <p style="font-size:12px; color:var(--text-muted);">Frente a <b id="calc-ice-cost-100">10.04 €</b> en gasolina 95.</p>
+            </div>
+            <div class="tech-panel">
+              <span class="overline">HUELLA EVITADA</span>
+              <h3 style="font-family:var(--display); font-size:32px; color:var(--accent-secondary); margin:8px 0;" id="calc-co2-kg">128 kg</h3>
+              <p style="font-size:12px; color:var(--text-muted);" id="calc-trees">Equivalente a 7 árboles/año.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. VIEW: CALCULATOR (CONVERSIÓN ELECTRICIDAD VS GASOLINA) -->
+        <section class="app-view" id="view-calculator">
+          <div class="view-header">
+            <span class="overline">SIMULADOR ECONÓMICO Y AMBIENTAL</span>
+            <h2>Conversión Electricidad vs Gasolina</h2>
+            <p>Calcula el ahorro exacto según tus tarifas y tu fuente de energía (Red, Solar o Mixta).</p>
+          </div>
+
+          <div class="grid-cols-2">
+            <!-- INPUTS -->
+            <div class="tech-panel">
+              <span class="overline">TUS TARIFAS Y FUENTE DE CARGA</span>
+              <div class="energy-chip-group" style="margin-top:14px;">
+                <div class="energy-chip selected" data-energy="solar">☀️ 100% Solar (0€)</div>
+                <div class="energy-chip" data-energy="mixed">🌗 Mixta (Solar+Red)</div>
+                <div class="energy-chip" data-energy="grid">🔌 Red Eléctrica</div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>Precio Electricidad Red (€/kWh):</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" step="0.01" id="cfg-kwh-grid" value="0.15">
+                  <span>€/kWh</span>
+                </div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>Coste Electricidad Solar (€/kWh amortizada):</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" step="0.01" id="cfg-kwh-solar" value="0.00">
+                  <span>€/kWh</span>
+                </div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>% Carga Solar en modo Mixto:</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" min="0" max="100" id="cfg-solar-pct" value="80">
+                  <span>% Solar</span>
+                </div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>Precio Gasolina 95 (€/Litro de referencia):</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" step="0.01" id="cfg-gas-price" value="1.62">
+                  <span>€/Litro</span>
+                </div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>Consumo coche gasolina equivalente (L/100km):</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" step="0.1" id="cfg-ice-cons" value="6.2">
+                  <span>L/100km</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- VISUAL COMPARISON GRAPH -->
+            <div class="tech-panel">
+              <span class="overline">COMPARATIVA VISUAL (COSTO CADA 100 KM)</span>
+              
+              <div class="comparison-chart-box">
+                <div class="chart-bar-pillar">
+                  <span class="chart-bar-value" id="calc-bar-val-ev">2.07€</span>
+                  <div class="chart-bar electric" id="calc-bar-ev" style="height:25%;"></div>
+                  <span class="chart-bar-label">Dolphin Surf</span>
+                </div>
+                <div class="chart-bar-pillar">
+                  <span class="chart-bar-value" id="calc-bar-val-ice">10.04€</span>
+                  <div class="chart-bar petrol" id="calc-bar-ice" style="height:100%;"></div>
+                  <span class="chart-bar-label">Gasolina 95</span>
+                </div>
+              </div>
+
+              <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <small style="color:var(--text-muted); font-size:11px; display:block;">AHORRO POR CADA 100 KM</small>
+                  <b style="font-family:var(--display); font-size:24px; color:var(--accent);" id="calc-savings-100">7.97 €</b>
+                </div>
+                <div>
+                  <span class="badge-saving" style="font-size:16px; padding:6px 12px;" id="calc-savings-pct">-79%</span>
+                </div>
+              </div>
+
+              <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--panel-border); font-size:12px; color:var(--text-muted);">
+                Tarifa efectiva aplicada: <b id="calc-effective-rate" style="color:var(--accent);">0.000 €/kWh</b>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. VIEW: TELEMETRY (DATOS TÉCNICOS DETALLADOS) -->
+        <section class="app-view" id="view-telemetry">
+          <div class="view-header">
+            <span class="overline">SISTEMAS DEL VEHÍCULO</span>
+            <h2>Telemetría en Vivo</h2>
+            <p>Valores de tracción, BMS de alto voltaje, chasis y neumáticos.</p>
+          </div>
+
+          <div class="grid-cols-3" style="margin-bottom:20px;">
+            <div class="tech-panel">
+              <span class="overline">TRACCIÓN & MARCHA</span>
+              <div style="display:flex; justify-content:space-between; margin-top:12px;">
+                <span>Velocidad:</span>
+                <b id="tel-speed" style="font-family:var(--mono); color:var(--accent);">0 km/h</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span>Potencia motor:</span>
+                <b id="tel-power" style="font-family:var(--mono);">0.0 kW</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span>Marcha:</span>
+                <b id="tel-gear" style="font-family:var(--mono); color:var(--accent-secondary);">P</b>
+              </div>
+            </div>
+
+            <div class="tech-panel">
+              <span class="overline">BATERÍA & ALTO VOLTAJE</span>
+              <div style="display:flex; justify-content:space-between; margin-top:12px;">
+                <span>Salud Batería (SoH):</span>
+                <b id="tel-soh" style="font-family:var(--mono); color:var(--accent);">99.2%</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span>Tensión Bus HV:</span>
+                <b id="tel-volt-hv" style="font-family:var(--mono);">348.5 V</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span>Batería auxiliar 12V:</span>
+                <b id="tel-volt-12v" style="font-family:var(--mono);">13.6 V</b>
+              </div>
+            </div>
+
+            <div class="tech-panel">
+              <span class="overline">HISTORIAL & CLIMA</span>
+              <div style="display:flex; justify-content:space-between; margin-top:12px;">
+                <span>Consumo de por vida:</span>
+                <b id="tel-lifetime-cons" style="font-family:var(--mono);">14.2 kWh/100km</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span>Temp. Exterior:</span>
+                <b id="tel-temp-ext" style="font-family:var(--mono);">19.0°C</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span>Temp. Cabina:</span>
+                <b id="tel-temp-cabin" style="font-family:var(--mono);">21.5°C</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- TIRES HUD -->
+          <div class="tech-panel">
+            <span class="overline">ESTADO Y PRESIÓN DE NEUMÁTICOS</span>
+            <div class="tires-hud-grid">
+              <div class="tire-widget">
+                <small>DELANTERO IZQ.</small>
+                <b id="tire-fl">2.5 bar</b>
+              </div>
+              <div class="tire-widget">
+                <small>DELANTERO DER.</small>
+                <b id="tire-fr">2.5 bar</b>
+              </div>
+              <div class="tire-widget">
+                <small>TRASERO IZQ.</small>
+                <b id="tire-rl">2.6 bar</b>
+              </div>
+              <div class="tire-widget">
+                <small>TRASERO DER.</small>
+                <b id="tire-rr">2.6 bar</b>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. VIEW: TRIPS (HISTORIAL DE TRAYECTOS) -->
+        <section class="app-view" id="view-trips">
+          <div class="view-header">
+            <span class="overline">REGISTRO DE CONDUCCIÓN</span>
+            <h2>Historial de Trayectos</h2>
+            <p>Comparativa viaje a viaje frente a lo que habrías gastado en combustible.</p>
+          </div>
+
+          <div id="trips-list">
+            <!-- Rendered dynamically by app.js -->
+          </div>
+        </section>
+
+        <!-- 5. VIEW: SETTINGS & ENCRYPTION VAULT -->
+        <section class="app-view" id="view-settings">
+          <div class="view-header">
+            <span class="overline">PERSONALIZACIÓN Y SEGURIDAD PRIVADA</span>
+            <h2>Ajustes & Bóveda Local Cifrada</h2>
+            <p>Tus datos son tuyos: personaliza la apariencia y protege tus accesos con encriptación AES-256 local.</p>
+          </div>
+
+          <!-- ENCRYPTION VAULT CARD -->
+          <div class="tech-panel" style="margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <span class="overline">BÓVEDA DE CIFRADO AES-256-GCM LOCAL</span>
+                <h3 style="margin-top:4px;">Protección de Credenciales del Vehículo</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-top:2px;" id="vault-status">Sin credenciales cifradas</p>
+              </div>
+              <span style="font-size:24px;">🔐</span>
+            </div>
+
+            <!-- VAULT SETUP BOX -->
+            <div id="vault-setup-box" style="margin-top:18px;">
+              <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+                Guarda tus datos de BYD cifrados con tu propio PIN maestro. Se almacenan en la memoria segura de tu propio teléfono y nadie más puede leerlos.
+              </p>
+              <div class="calc-control-group">
+                <label>Usuario o Teléfono BYD:</label>
+                <div class="calc-input-wrapper">
+                  <input type="text" id="byd-input-user" placeholder="ejemplo@email.com">
+                </div>
+              </div>
+              <div class="calc-control-group">
+                <label>Contraseña BYD:</label>
+                <div class="calc-input-wrapper">
+                  <input type="password" id="byd-input-pass" placeholder="••••••••">
+                </div>
+              </div>
+              <div class="calc-control-group">
+                <label>Crea tu PIN de Cifrado (mínimo 4 dígitos):</label>
+                <div class="calc-input-wrapper">
+                  <input type="password" id="vault-input-pin" placeholder="PIN Secreto" maxlength="8">
+                </div>
+              </div>
+              <button class="theme-btn active" id="vault-save-btn" style="width:100%; justify-content:center; padding:12px; margin-top:8px;">
+                🔒 Cifrar y Guardar en este dispositivo
+              </button>
+            </div>
+
+            <!-- VAULT UNLOCK BOX -->
+            <div id="vault-unlock-box" hidden style="margin-top:18px;">
+              <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+                Tus credenciales están guardadas y cifradas. Introduce tu PIN para desbloquear el acceso:
+              </p>
+              <div class="calc-control-group">
+                <label>PIN Maestro:</label>
+                <div class="calc-input-wrapper">
+                  <input type="password" id="vault-unlock-pin" placeholder="Tu PIN" maxlength="8">
+                </div>
+              </div>
+              <button class="theme-btn active" id="vault-unlock-btn" style="width:100%; justify-content:center; padding:12px;">
+                🔓 Desbloquear Bóveda
+              </button>
+            </div>
+
+            <!-- VAULT ACTIVE BOX -->
+            <div id="vault-active-box" hidden style="margin-top:18px;">
+              <div style="background:rgba(var(--accent-rgb), 0.1); border:1px solid rgba(var(--accent-rgb), 0.3); border-radius:8px; padding:14px; color:var(--accent);">
+                ✓ Bóveda descifrada en memoria RAM. Tus credenciales están protegidas localmente.
+              </div>
+              <button class="theme-btn" id="vault-wipe-btn" style="width:100%; justify-content:center; padding:12px; margin-top:12px; color:var(--danger); border-color:var(--danger);">
+                🗑️ Borrar credenciales y destruir bóveda local
+              </button>
+            </div>
+          </div>
+
+          <!-- THEMES & APPEARANCE -->
+          <div class="tech-panel">
+            <span class="overline">PERSONALIZACIÓN VISUAL</span>
+            <h3 style="margin-top:4px;">Color de Carrocería & Tema</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+              Selecciona el color real de tu Dolphin Surf para adaptar la imagen y los tonos de la app.
+            </p>
+
+            <div class="theme-picker-row">
+              <button class="theme-btn active" data-theme="original">
+                <span style="background:#c7f36b;"></span> Original Verde Lima
+              </button>
+              <button class="theme-btn" data-theme="blue">
+                <span style="background:#6db6ff;"></span> Azul Eléctrico
+              </button>
+              <button class="theme-btn" data-theme="red">
+                <span style="background:#ff7575;"></span> Rojo Coral
+              </button>
+              <button class="theme-btn" data-theme="green">
+                <span style="background:#52e597;"></span> Verde Esmeralda
+              </button>
+              <button class="theme-btn" data-theme="violet">
+                <span style="background:#be8fff;"></span> Violeta Neón
+              </button>
+            </div>
+
+            <div style="margin-top:24px;">
+              <span class="overline">TAMAÑO DEL TEXTO</span>
+              <div style="display:flex; align-items:center; gap:16px; margin-top:10px;">
+                <span style="font-size:12px; color:var(--text-muted);">A</span>
+                <input type="range" min="1" max="5" value="3" id="font-size-slider" style="flex:1; accent-color:var(--accent);">
+                <span style="font-size:20px; color:var(--accent); font-weight:700;">A</span>
+                <span id="font-size-display" style="font-family:var(--mono); color:var(--accent); font-size:12px; min-width:40px;">3 / 5</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MOBILE BOTTOM NAVIGATION -->
+  <nav class="mobile-nav">
+    <a class="mobile-nav-item active" href="#" data-target-view="dashboard">
+      <span class="nav-icon">📊</span>
+      <span>Resumen</span>
+    </a>
+    <a class="mobile-nav-item" href="#" data-target-view="calculator">
+      <span class="nav-icon">⚡</span>
+      <span>Ahorro</span>
+    </a>
+    <a class="mobile-nav-item" href="#" data-target-view="telemetry">
+      <span class="nav-icon">🚗</span>
+      <span>Coche</span>
+    </a>
+    <a class="mobile-nav-item" href="#" data-target-view="trips">
+      <span class="nav-icon">⏱️</span>
+      <span>Viajes</span>
+    </a>
+    <a class="mobile-nav-item" href="#" data-target-view="settings">
+      <span class="nav-icon">⚙️</span>
+      <span>Ajustes</span>
+    </a>
+  </nav>
+
+  <!-- TOAST POPUP -->
+  <div id="toast" class="toast-msg"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+functions/.env.*
+functions/.venv/
+functions/__pycache__/
+functions/*.pyc
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+service-account*.json
+*service-account*.json
+node_modules/
+backup_v1/

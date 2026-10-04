@@ -1,0 +1,4 @@
+firebase-functions>=0.4.2,<1
+firebase-admin>=6.5,<8
+google-cloud-kms>=2.20,<3
+pybyd==0.0.73

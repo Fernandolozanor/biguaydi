@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Credentials and login throttling are server-only collections.
+    match /bydConnections/{uid} {
+      allow read, write: if false;
+    }
+    match /_loginLimits/{uid} {
+      allow read, write: if false;
+    }
+
+    // A signed-in owner may read their own live snapshot and archived samples.
+    // Only trusted Cloud Functions write or delete these documents.
+    match /vehicleData/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+      match /samples/{sampleId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+
+    // Reserved for trip summaries created by the server-side collector.
+    match /driveHistory/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+      match /trips/{tripId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+  }
+}
