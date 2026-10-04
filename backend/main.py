@@ -107,35 +107,44 @@ async def get_telemetry(req: FetchRequest):
             await client.login()
             vehicles = await client.get_vehicles()
             
-            target = None
-            if req.vin:
-                for v in vehicles:
-                    cleaned = _clean_data(v)
-                    if cleaned.get("vin") == req.vin:
-                        target = v
-                        break
-            if not target and vehicles:
-                target = vehicles[0]
+            if not vehicles:
+                raise HTTPException(status_code=404, detail="La cuenta BYD no tiene coches asociados.")
             
-            if not target:
-                raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
+            selected_vin = req.vin
+            if not selected_vin:
+                # Extract VIN from the first vehicle object or dict
+                first_v = vehicles[0]
+                cleaned_first = _clean_data(first_v)
+                selected_vin = cleaned_first.get("vin")
             
-            # Fetch realtime data and energy metrics
-            realtime_raw = await target.get_realtime_data()
-            energy_raw = await target.get_energy_consumption()
+            if not selected_vin:
+                raise HTTPException(status_code=404, detail="No se pudo identificar el número de bastidor (VIN).")
+            
+            # Use direct client methods or vehicle instance methods
+            try:
+                realtime_raw = await client.get_vehicle_realtime(selected_vin)
+            except AttributeError:
+                realtime_raw = await vehicles[0].get_realtime_data()
+            
+            try:
+                energy_raw = await client.get_energy_consumption(selected_vin)
+            except AttributeError:
+                energy_raw = await vehicles[0].get_energy_consumption()
 
             realtime = _clean_data(realtime_raw)
             energy = _clean_data(energy_raw)
 
             return {
                 "success": True,
-                "vin": _clean_data(target).get("vin"),
+                "vin": selected_vin,
                 "capturedAt": datetime.now(timezone.utc).isoformat(),
                 "realtime": realtime,
                 "energy": energy
             }
+    except HTTPException:
+        raise
     except Exception as exc:
         err = str(exc).lower()
-        if "auth" in err or "password" in err:
-            raise HTTPException(status_code=401, detail="Error de autenticación con BYD.")
+        if "auth" in err or "password" in err or "3008" in err:
+            raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos en BYD.")
         raise HTTPException(status_code=502, detail=f"Error consultando telemetría BYD: {str(exc)}")
