@@ -36,12 +36,23 @@ const STATE = {
     lifetimeConsumption: 14.2, // kWh/100km
     tires: { fl: 2.5, fr: 2.5, rl: 2.6, rr: 2.6 }
   },
-  trips: [
-    { id: 1, title: 'Trabajo ➔ Casa', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
-    { id: 2, title: 'Casa ➔ Gimnasio', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
-    { id: 3, title: 'Madrid ➔ Toledo', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
-    { id: 4, title: 'Recados urbanos', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
-  ]
+  trips: (function() {
+    try {
+      const saved = localStorage.getItem('biguaydi-trips');
+      return saved ? JSON.parse(saved) : [
+        { id: 1, title: 'Trabajo ➔ Casa', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
+        { id: 2, title: 'Casa ➔ Gimnasio', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
+        { id: 3, title: 'Madrid ➔ Toledo', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
+        { id: 4, title: 'Recados urbanos', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
+      ];
+    } catch (_) {
+      return [];
+    }
+  })(),
+  autoRecorder: {
+    lastOdometer: Number(localStorage.getItem('biguaydi-recorder-odo')) || 14280,
+    status: 'Activo'
+  }
 };
 
 // Car images corresponding to themes
@@ -299,7 +310,7 @@ function renderVehicleHUD() {
   setEl('hud-tire-rr', `${v.tires.rr} bar`);
 }
 
-// --- TRIPS RENDER ---
+// --- TRIPS RENDER, KPIS & IMPACTFUL CHART ---
 function renderTrips() {
   const container = document.getElementById('trips-list');
   if (!container) return;
@@ -310,39 +321,304 @@ function renderTrips() {
   const iceCons = STATE.prices.iceConsumption;
   const dieselCons = STATE.prices.dieselConsumption;
 
-  container.innerHTML = STATE.trips.map(trip => {
-    const tripCostEv = trip.energy * costPerKwh;
-    const tripCostGas = (trip.distance / 100) * iceCons * gasPrice;
-    const tripCostDiesel = (trip.distance / 100) * dieselCons * dieselPrice;
-    const tripSavingsGas = Math.max(0, tripCostGas - tripCostEv);
-    const tripSavingsDiesel = Math.max(0, tripCostDiesel - tripCostEv);
+  // 1. Compute Aggregated KPIs
+  let totalDistance = 0;
+  let totalEnergy = 0;
+  let totalCostEv = 0;
+  let totalCostGas = 0;
+  let totalCostDiesel = 0;
 
-    return `
-      <article class="trip-card">
-        <div class="trip-card-main">
-          <div class="trip-route-badge">⌖</div>
-          <div class="trip-details">
-            <div class="trip-title">
-              <b>${trip.title}</b>
-              <span class="trip-time">${trip.date} · ${trip.duration}</span>
-            </div>
-            <div class="trip-stats-row">
-              <span><b>${trip.distance.toFixed(1)}</b> km</span>
-              <span><b>${trip.energy.toFixed(2)}</b> kWh</span>
-              <span><b>${trip.avgWh}</b> Wh/km</span>
-            </div>
-          </div>
-        </div>
-        <div class="trip-cost-badge">
-          <div class="trip-ev-cost">${tripCostEv.toFixed(2)} €</div>
-          <div class="trip-ice-comp" style="font-size:11.5px; line-height:1.4;">
-            <div>Gas: <del>${tripCostGas.toFixed(2)}€</del> <b class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)}€</b></div>
-            <div>Diésel: <del>${tripCostDiesel.toFixed(2)}€</del> <b class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)}€</b></div>
-          </div>
-        </div>
-      </article>
+  STATE.trips.forEach(trip => {
+    totalDistance += trip.distance;
+    totalEnergy += trip.energy;
+    const costEv = trip.energy * costPerKwh;
+    const costGas = (trip.distance / 100) * iceCons * gasPrice;
+    const costDiesel = (trip.distance / 100) * dieselCons * dieselPrice;
+    totalCostEv += costEv;
+    totalCostGas += costGas;
+    totalCostDiesel += costDiesel;
+  });
+
+  const totalSavingsGas = Math.max(0, totalCostGas - totalCostEv);
+  const totalSavingsDiesel = Math.max(0, totalCostDiesel - totalCostEv);
+  const avgKwh100km = totalDistance > 0 ? ((totalEnergy / totalDistance) * 100) : 0;
+  const avgWh = totalDistance > 0 ? Math.round((totalEnergy * 1000) / totalDistance) : 0;
+  const co2AvoidedKg = (totalDistance * 104) / 1000;
+
+  // Update KPI DOM elements
+  const elDist = document.getElementById('kpi-trip-distance');
+  const elCount = document.getElementById('kpi-trip-count');
+  const elSavings = document.getElementById('kpi-trip-savings');
+  const elSavGas = document.getElementById('kpi-trip-sav-gas');
+  const elSavDiesel = document.getElementById('kpi-trip-sav-diesel');
+  const elEff = document.getElementById('kpi-trip-efficiency');
+  const elWh = document.getElementById('kpi-trip-wh');
+  const elCo2 = document.getElementById('kpi-trip-co2');
+  const elOdoBase = document.getElementById('recorder-base-odo');
+
+  if (elDist) elDist.textContent = `${totalDistance.toFixed(1)} km`;
+  if (elCount) elCount.textContent = STATE.trips.length;
+  if (elSavings) elSavings.textContent = `${totalSavingsGas.toFixed(2)} €`;
+  if (elSavGas) elSavGas.textContent = `${totalSavingsGas.toFixed(2)}€`;
+  if (elSavDiesel) elSavDiesel.textContent = `${totalSavingsDiesel.toFixed(2)}€`;
+  if (elEff) elEff.textContent = `${avgKwh100km.toFixed(1)} kWh`;
+  if (elWh) elWh.textContent = avgWh;
+  if (elCo2) elCo2.textContent = `${co2AvoidedKg.toFixed(1)} kg`;
+  if (elOdoBase) elOdoBase.textContent = `${STATE.vehicle.odometer.toLocaleString('es-ES')} km`;
+
+  // 2. Render List of Trip Cards
+  if (STATE.trips.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:36px 20px; color:var(--text-muted); background:var(--panel-card); border:1px solid var(--panel-border); border-radius:var(--radius-sm);">
+        <span style="font-size:32px; display:block; margin-bottom:8px;">🚗</span>
+        <b>Sin trayectos registrados todavía</b>
+        <p style="font-size:12.5px; margin-top:4px;">Pulsa en "Simular y Probar Trayecto" o sincroniza con tu coche para registrar automáticamente.</p>
+      </div>
     `;
-  }).join('');
+  } else {
+    container.innerHTML = STATE.trips.map(trip => {
+      const tripCostEv = trip.energy * costPerKwh;
+      const tripCostGas = (trip.distance / 100) * iceCons * gasPrice;
+      const tripCostDiesel = (trip.distance / 100) * dieselCons * dieselPrice;
+      const tripSavingsGas = Math.max(0, tripCostGas - tripCostEv);
+      const tripSavingsDiesel = Math.max(0, tripCostDiesel - tripCostEv);
+
+      return `
+        <article class="trip-card ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}">
+          <div class="trip-card-main">
+            <div class="trip-route-badge">⌖</div>
+            <div class="trip-details">
+              <div class="trip-title">
+                <b>${trip.title}</b>
+                <span class="trip-time">${trip.date} · ${trip.duration}</span>
+              </div>
+              <div class="trip-stats-row">
+                <span><b>${trip.distance.toFixed(1)}</b> km</span>
+                <span><b>${trip.energy.toFixed(2)}</b> kWh</span>
+                <span><b>${trip.avgWh}</b> Wh/km</span>
+              </div>
+            </div>
+          </div>
+          <div class="trip-cost-badge">
+            <div class="trip-ev-cost">${tripCostEv.toFixed(2)} €</div>
+            <div class="trip-ice-comp" style="font-size:11.5px; line-height:1.4;">
+              <div>Gas: <del>${tripCostGas.toFixed(2)}€</del> <b class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)}€</b></div>
+              <div>Diésel: <del>${tripCostDiesel.toFixed(2)}€</del> <b class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)}€</b></div>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  // 3. Render the Impactful SVG Chart
+  renderTripsChart();
+}
+
+function renderTripsChart() {
+  const chartBox = document.getElementById('trips-chart-container');
+  if (!chartBox) return;
+
+  const trips = STATE.trips.slice(0, 6).reverse();
+  if (trips.length === 0) {
+    chartBox.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-dim); font-size:12px;">Sin datos suficientes para graficar</div>';
+    return;
+  }
+
+  const costPerKwh = getEffectiveElectricityPrice();
+  const gasPrice = STATE.prices.gas95;
+  const dieselPrice = STATE.prices.diesel;
+  const iceCons = STATE.prices.iceConsumption;
+  const dieselCons = STATE.prices.dieselConsumption;
+
+  const data = trips.map(t => {
+    const costEv = t.energy * costPerKwh;
+    const costGas = (t.distance / 100) * iceCons * gasPrice;
+    const costDiesel = (t.distance / 100) * dieselCons * dieselPrice;
+    return {
+      title: t.title.split(' ')[0] || `V${t.id}`,
+      dist: t.distance.toFixed(1) + 'km',
+      wh: t.avgWh,
+      costEv,
+      costGas,
+      costDiesel
+    };
+  });
+
+  const maxCost = Math.max(...data.map(d => Math.max(d.costEv, d.costGas, d.costDiesel)), 1.5);
+  const minWh = Math.min(...data.map(d => d.wh), 100);
+  const maxWh = Math.max(...data.map(d => d.wh), 200);
+
+  const W = Math.max(500, data.length * 96);
+  const H = 210;
+  const padL = 40;
+  const padR = 25;
+  const padT = 30;
+  const padB = 40;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const slotW = plotW / data.length;
+  const barW = Math.min(18, (slotW - 20) / 3);
+  const linePoints = [];
+
+  let barsSvg = '';
+  data.forEach((d, i) => {
+    const cx = padL + i * slotW + slotW / 2;
+    const xEv = cx - barW * 1.5;
+    const xGas = cx - barW * 0.5;
+    const xDiesel = cx + barW * 0.5;
+
+    const hEv = Math.max(8, (d.costEv / maxCost) * plotH);
+    const hGas = Math.max(8, (d.costGas / maxCost) * plotH);
+    const hDiesel = Math.max(8, (d.costDiesel / maxCost) * plotH);
+
+    const yEv = padT + (plotH - hEv);
+    const yGas = padT + (plotH - hGas);
+    const yDiesel = padT + (plotH - hDiesel);
+
+    const whNorm = (d.wh - minWh) / Math.max(1, maxWh - minWh);
+    const yWh = padT + (plotH - (whNorm * (plotH * 0.6) + (plotH * 0.2)));
+    linePoints.push({ x: cx, y: yWh, val: d.wh });
+
+    barsSvg += `
+      <g class="chart-trip-group">
+        <!-- EV Bar -->
+        <rect x="${xEv}" y="${yEv}" width="${barW - 2}" height="${hEv}" rx="3" fill="url(#tripEvGrad)" />
+        <rect x="${xEv}" y="${yEv}" width="${barW - 2}" height="2" rx="1" fill="#fff" filter="url(#glowHead)" />
+        <text x="${xEv + (barW - 2)/2}" y="${yEv - 5}" font-size="9" fill="var(--accent)" text-anchor="middle" font-family="var(--mono)">${d.costEv.toFixed(2)}€</text>
+
+        <!-- Gas Bar -->
+        <rect x="${xGas}" y="${yGas}" width="${barW - 2}" height="${hGas}" rx="3" fill="url(#tripGasGrad)" />
+        <rect x="${xGas}" y="${yGas}" width="${barW - 2}" height="2" rx="1" fill="#fff" filter="url(#glowGas)" />
+        <text x="${xGas + (barW - 2)/2}" y="${yGas - 5}" font-size="9" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(1)}€</text>
+
+        <!-- Diesel Bar -->
+        <rect x="${xDiesel}" y="${yDiesel}" width="${barW - 2}" height="${hDiesel}" rx="3" fill="url(#tripDieGrad)" />
+        <rect x="${xDiesel}" y="${yDiesel}" width="${barW - 2}" height="2" rx="1" fill="#fff" filter="url(#glowDie)" />
+        <text x="${xDiesel + (barW - 2)/2}" y="${yDiesel - 5}" font-size="9" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(1)}€</text>
+
+        <!-- Labels -->
+        <text x="${cx}" y="${H - 18}" font-size="11" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
+        <text x="${cx}" y="${H - 5}" font-size="9.5" fill="var(--text-muted)" text-anchor="middle" font-family="var(--mono)">${d.dist}</text>
+      </g>
+    `;
+  });
+
+  const pointsStr = linePoints.map(p => `${p.x},${p.y}`).join(' ');
+  const dotsSvg = linePoints.map(p => `
+    <circle cx="${p.x}" cy="${p.y}" r="4" fill="#4ce0d2" stroke="#060c0a" stroke-width="2" filter="url(#glowCyan)" />
+    <text x="${p.x}" y="${p.y - 8}" font-size="9" fill="#4ce0d2" text-anchor="middle" font-weight="700" font-family="var(--mono)">${p.val}</text>
+  `).join('');
+
+  chartBox.innerHTML = `
+    <svg class="trips-svg-canvas" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="tripEvGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="var(--accent)" />
+          <stop offset="100%" stop-color="#0b3823" />
+        </linearGradient>
+        <linearGradient id="tripGasGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ff8c73" />
+          <stop offset="100%" stop-color="#4d170c" />
+        </linearGradient>
+        <linearGradient id="tripDieGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#f5cc7f" />
+          <stop offset="100%" stop-color="#47310a" />
+        </linearGradient>
+        <filter id="glowHead" x="-20%" y="-50%" width="140%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="glowGas" x="-20%" y="-50%" width="140%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="glowDie" x="-20%" y="-50%" width="140%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="glowCyan" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+
+      <line x1="${padL}" y1="${padT + plotH * 0.25}" x2="${W - padR}" y2="${padT + plotH * 0.25}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
+      <line x1="${padL}" y1="${padT + plotH * 0.5}" x2="${W - padR}" y2="${padT + plotH * 0.5}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
+      <line x1="${padL}" y1="${padT + plotH * 0.75}" x2="${W - padR}" y2="${padT + plotH * 0.75}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
+      <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(255,255,255,0.15)" />
+
+      ${barsSvg}
+
+      <polyline fill="none" stroke="#4ce0d2" stroke-width="2.5" stroke-dasharray="4 3" points="${pointsStr}" opacity="0.85" />
+      ${dotsSvg}
+    </svg>
+  `;
+}
+
+// --- AUTO TRIP RECORDER ENGINE & SIMULATOR ---
+function initAutoTripRecorder() {
+  const btnSim = document.getElementById('btn-simulate-trip');
+  const btnReset = document.getElementById('btn-reset-trips');
+
+  if (btnSim) {
+    btnSim.addEventListener('click', () => {
+      const routes = [
+        { title: 'Trabajo ➔ Ciudad', dist: 18.6, wh: 132 },
+        { title: 'Autovía / Ronda', dist: 29.4, wh: 148 },
+        { title: 'Centro Comercial', dist: 11.2, wh: 126 },
+        { title: 'Escapada Sierra', dist: 54.0, wh: 156 },
+        { title: 'Ruta M-40 / Aeropuerto', dist: 24.8, wh: 139 }
+      ];
+      const sample = routes[Math.floor(Math.random() * routes.length)];
+      const deltaOdo = sample.dist;
+
+      STATE.vehicle.odometer = Number((STATE.vehicle.odometer + deltaOdo).toFixed(1));
+
+      const newTrip = {
+        id: Date.now(),
+        title: sample.title,
+        date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        distance: sample.dist,
+        energy: Number(((sample.dist * sample.wh) / 1000).toFixed(2)),
+        avgWh: sample.wh,
+        duration: Math.max(8, Math.round(sample.dist * 1.5)) + ' min',
+        isNew: true
+      };
+
+      STATE.trips.unshift(newTrip);
+      localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+      localStorage.setItem('biguaydi-recorder-odo', STATE.vehicle.odometer);
+
+      renderTrips();
+      renderVehicleHUD();
+      showToast(`⚡ ¡Nuevo trayecto de ${sample.dist} km registrado automáticamente!`);
+
+      setTimeout(() => {
+        const firstCard = document.querySelector('.trip-card');
+        if (firstCard) {
+          firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+    });
+  }
+
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      if (confirm('¿Restablecer el historial de trayectos a los valores iniciales?')) {
+        STATE.trips = [
+          { id: 1, title: 'Trabajo ➔ Casa', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
+          { id: 2, title: 'Casa ➔ Gimnasio', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
+          { id: 3, title: 'Madrid ➔ Toledo', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
+          { id: 4, title: 'Recados urbanos', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
+        ];
+        localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+        renderTrips();
+        showToast('Historial de trayectos restablecido');
+      }
+    });
+  }
 }
 
 // --- ENCRYPTED VAULT INTEGRATION ---
@@ -500,6 +776,32 @@ function initSecurityVault() {
           STATE.vehicle.avgConsumption50km = Number(eg.nearest_energy_consumption.avg_ev_consumption);
         }
 
+        // Check if odometer has advanced to automatically record completed trip
+        const prevOdo = Number(localStorage.getItem('biguaydi-recorder-odo')) || STATE.vehicle.odometer;
+        if (rt.total_mileage && Number(rt.total_mileage) > prevOdo) {
+          const delta = Number((Number(rt.total_mileage) - prevOdo).toFixed(1));
+          if (delta >= 0.3) {
+            const avgWh = Math.round((STATE.vehicle.avgConsumption50km || 13.8) * 10);
+            const autoTrip = {
+              id: Date.now(),
+              title: `Ruta Detectada (${delta} km)`,
+              date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+              distance: delta,
+              energy: Number(((delta * avgWh) / 1000).toFixed(2)),
+              avgWh: avgWh,
+              duration: Math.max(3, Math.round(delta * 1.6)) + ' min',
+              isNew: true
+            };
+            STATE.trips.unshift(autoTrip);
+            localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+            renderTrips();
+            showToast(`🚗 ¡Trayecto completado detectado: ${delta} km guardados!`);
+          }
+        }
+        if (rt.total_mileage) {
+          localStorage.setItem('biguaydi-recorder-odo', rt.total_mileage);
+        }
+
         renderVehicleHUD();
         updateCalculations();
         showToast('✓ Telemetría de BYD actualizada en vivo');
@@ -523,6 +825,7 @@ export function initApp() {
   renderVehicleHUD();
   updateCalculations();
   renderTrips();
+  initAutoTripRecorder();
   initSecurityVault();
 
   // Theme choices (strictly scoped to theme picker buttons with data-theme)

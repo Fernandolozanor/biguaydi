@@ -1172,6 +1172,127 @@ body[data-size="5"] { font-size: 18px; }
   gap: 8px;
 }
 
+/* AUTO-RECORDER LIVE STATUS & RADAR */
+.auto-recorder-banner {
+  background: linear-gradient(135deg, rgba(8, 28, 20, 0.7) 0%, rgba(13, 38, 30, 0.4) 100%);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.trip-radar-pulse {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.pulse-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: radarWave 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+.pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+@keyframes radarWave {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+.recorder-odometer-tag {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--panel-border);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.trip-kpi-card {
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.trip-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+/* IMPACTFUL TRIPS CHART */
+.trips-chart-panel {
+  background: radial-gradient(ellipse at 50% 0%, rgba(var(--accent-rgb), 0.06) 0%, var(--panel) 80%);
+  border-color: var(--panel-border);
+  margin-bottom: 24px;
+  border-radius: var(--radius-sm);
+}
+
+.trips-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.trips-chart-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  font-family: var(--mono);
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.trips-svg-container {
+  width: 100%;
+  min-height: 230px;
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.trips-svg-canvas {
+  width: 100%;
+  min-width: 520px;
+  height: 220px;
+  display: block;
+}
+
+.trip-card.new-arrival {
+  animation: tripHighlight 2.5s ease-out;
+}
+
+@keyframes tripHighlight {
+  0% { background: rgba(var(--accent-rgb), 0.25); border-color: var(--accent); transform: scale(1.02); }
+  100% { background: var(--panel-card); border-color: var(--panel-border); transform: scale(1); }
+}
+
 /* TRIP CARDS */
 .trip-card {
   background: var(--panel-card);

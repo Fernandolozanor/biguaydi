@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v6-chart-scale-date';
+const CACHE = 'biguaydi-v7-auto-trips-kpis';
 const ASSETS = [
   './',
   './index.html',

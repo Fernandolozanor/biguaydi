@@ -441,12 +441,100 @@
           </div>
         </section>
 
-        <!-- 4. VIEW: TRIPS (HISTORIAL DE TRAYECTOS) -->
+        <!-- 4. VIEW: TRIPS (HISTORIAL DE TRAYECTOS & REGISTRO AUTOMÁTICO) -->
         <section class="app-view" id="view-trips">
           <div class="view-header">
-            <span class="overline">REGISTRO DE CONDUCCIÓN</span>
-            <h2>Historial de Trayectos</h2>
-            <p>Comparativa viaje a viaje frente a lo que habrías gastado en combustible.</p>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+              <div>
+                <span class="overline">REGISTRO DE CONDUCCIÓN & AUDITORÍA</span>
+                <h2>Historial de Trayectos</h2>
+                <p>Monitor inteligente de trayectos, costes reales y auditoría de ahorro frente a térmicos.</p>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <button class="action-btn active" id="btn-simulate-trip" style="padding:8px 14px; font-size:12px;">
+                  ⚡ Simular y Probar Trayecto
+                </button>
+                <button class="action-btn" id="btn-reset-trips" style="padding:8px 12px; font-size:12px; color:var(--text-muted);">
+                  🔄 Restablecer
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- AUTO-RECORDER LIVE STATUS BANNER -->
+          <div class="tech-panel auto-recorder-banner" style="margin-bottom:20px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+              <div style="display:flex; align-items:center; gap:14px;">
+                <div class="trip-radar-pulse">
+                  <span class="pulse-ring"></span>
+                  <span class="pulse-dot"></span>
+                </div>
+                <div>
+                  <b style="color:var(--accent); font-size:13.5px; display:block;">Detector Automático de Trayectos: ACTIVO</b>
+                  <span style="font-size:12px; color:var(--text-muted);" id="recorder-status-desc">
+                    Capturando odómetro y marcha en cada sync · Guarda el trayecto al finalizar marcha
+                  </span>
+                </div>
+              </div>
+              <div class="recorder-odometer-tag">
+                <span style="font-size:10px; color:var(--text-muted); font-family:var(--mono); letter-spacing:0.8px;">ODÓMETRO BASE</span>
+                <b id="recorder-base-odo" style="font-family:var(--mono); color:var(--text); font-size:13.5px;">14.280 km</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPIS GRID -->
+          <div class="grid-cols-4" style="margin-bottom:22px;">
+            <div class="tech-panel trip-kpi-card">
+              <span class="overline">DISTANCIA TOTAL</span>
+              <div class="card-data-value" id="kpi-trip-distance" style="margin:6px 0;">119.9 km</div>
+              <p class="card-data-sub"><b id="kpi-trip-count">4</b> trayectos analizados</p>
+            </div>
+
+            <div class="tech-panel trip-kpi-card">
+              <span class="overline">AHORRO ACUMULADO</span>
+              <div class="card-data-value" id="kpi-trip-savings" style="color:var(--accent); margin:6px 0;">9.42 €</div>
+              <p class="card-data-sub">Vs Gas: <b id="kpi-trip-sav-gas">9.42€</b> · Diésel: <b id="kpi-trip-sav-diesel">7.03€</b></p>
+            </div>
+
+            <div class="tech-panel trip-kpi-card">
+              <span class="overline">EFICIENCIA MEDIA</span>
+              <div class="card-data-value" id="kpi-trip-efficiency" style="color:var(--accent-secondary); margin:6px 0;">14.5 kWh</div>
+              <p class="card-data-sub">Media en <b id="kpi-trip-wh">145</b> Wh/km</p>
+            </div>
+
+            <div class="tech-panel trip-kpi-card">
+              <span class="overline">CO₂ EVITADO</span>
+              <div class="card-data-value" id="kpi-trip-co2" style="color:#52e597; margin:6px 0;">12.5 kg</div>
+              <p class="card-data-sub">Emisiones neutralizadas</p>
+            </div>
+          </div>
+
+          <!-- IMPACTFUL TRIPS CHART -->
+          <div class="tech-panel trips-chart-panel">
+            <div class="trips-chart-header">
+              <div>
+                <span class="overline">DINÁMICA DE COSTE Y ENERGÍA POR VIAJE</span>
+                <h3 style="margin-top:2px;">Comparativa Económica por Trayecto</h3>
+              </div>
+              <div class="trips-chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:var(--accent); box-shadow:0 0 6px var(--accent);"></span> Eléctrico (€)</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#ff8c73; box-shadow:0 0 6px #ff8c73;"></span> Gasolina 95 (€)</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#f5cc7f; box-shadow:0 0 6px #f5cc7f;"></span> Diésel A (€)</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#4ce0d2; box-shadow:0 0 6px #4ce0d2;"></span> Consumo (Wh/km)</span>
+              </div>
+            </div>
+
+            <!-- SVG DYNAMIC GRAPH -->
+            <div class="trips-svg-container" id="trips-chart-container">
+              <!-- Rendered dynamically by app.js -->
+            </div>
+          </div>
+
+          <!-- DETAILED LIST -->
+          <div class="view-header" style="margin-top:28px; margin-bottom:14px;">
+            <span class="overline">REGISTRO CRONOLÓGICO</span>
+            <h3>Detalle de Trayectos</h3>
           </div>
 
           <div id="trips-list">
