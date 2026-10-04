@@ -571,7 +571,7 @@ body[data-size="5"] { font-size: 18px; }
   margin-left: 2px;
 }
 
-/* 2. CHASSIS HUD VIEWPORT */
+/* 2. CHASSIS HUD VIEWPORT & TECHNICAL SCHEMATIC */
 .chassis-hud-viewport {
   display: flex;
   justify-content: center;
@@ -583,65 +583,92 @@ body[data-size="5"] { font-size: 18px; }
 .chassis-wrapper {
   position: relative;
   width: 280px;
+  height: 250px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chassis-image-container {
+  position: relative;
+  width: 140px;
   height: 240px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.car-chassis-svg {
-  width: 135px;
-  height: 230px;
-  filter: drop-shadow(0 0 16px rgba(var(--accent-rgb), 0.25));
+.chassis-real-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(0, 0, 0, 0.8));
+  border-radius: 8px;
 }
 
-/* VECTOR CHASSIS ELEMENTS (REACTIVE TO THEME) */
-.svg-car-body {
-  fill: rgba(13, 26, 22, 0.8);
+/* ANIMATED ELECTRIC CIRCUIT OVERLAY */
+.circuit-overlay-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.flow-line {
+  fill: none;
   stroke: var(--accent);
-  stroke-width: 2.2;
-  transition: stroke 0.4s ease;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 8 6;
+  animation: electricFlow 1.2s linear infinite;
+  opacity: 0.9;
 }
 
-.svg-wheel {
-  fill: #141b18;
-  stroke: rgba(255, 255, 255, 0.2);
-  stroke-width: 1.5;
-}
-
-.svg-axle {
-  stroke: rgba(255, 255, 255, 0.15);
-  stroke-width: 2;
-  stroke-dasharray: 4 4;
-}
-
-.svg-battery-pack {
-  fill: rgba(var(--accent-rgb), 0.08);
-  stroke: rgba(var(--accent-rgb), 0.4);
-  stroke-width: 1.5;
-}
-
-.svg-battery-core {
-  stroke: rgba(var(--accent-rgb), 0.3);
-  stroke-width: 1.2;
-}
-
-.svg-cabin-glass {
-  fill: rgba(255, 255, 255, 0.04);
-  stroke: rgba(255, 255, 255, 0.18);
-  stroke-width: 1.2;
-}
-
-.svg-light-beam.front {
+.battery-flow {
+  animation-duration: 0.8s;
   stroke: #ffffff;
-  stroke-width: 2.5;
-  filter: drop-shadow(0 -3px 6px #ffffff);
 }
 
-.svg-light-beam.rear {
-  stroke: #ff5252;
-  stroke-width: 2.5;
-  filter: drop-shadow(0 3px 6px #ff5252);
+@keyframes electricFlow {
+  from { stroke-dashoffset: 28; }
+  to { stroke-dashoffset: 0; }
+}
+
+.motor-pulse-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  animation: pulseRing 1.8s ease-out infinite;
+}
+
+.motor-pulse-core {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 6px var(--accent));
+  animation: coreGlow 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulseRing {
+  0% { r: 6; opacity: 1; stroke-width: 3; }
+  100% { r: 18; opacity: 0; stroke-width: 0.5; }
+}
+
+@keyframes coreGlow {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.2); opacity: 1; }
+}
+
+.battery-glow-mesh {
+  fill: rgba(var(--accent-rgb), 0.08);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  animation: batteryPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes batteryPulse {
+  0% { opacity: 0.4; stroke-width: 1; }
+  100% { opacity: 0.9; stroke-width: 2; }
 }
 
 /* TIRE INDICATOR WIDGETS */

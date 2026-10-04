@@ -128,49 +128,33 @@
                   <b id="hud-tire-fr">2.5 <span class="unit">bar</span></b>
                 </div>
 
-                <!-- TOP-DOWN EV CHASSIS VECTOR -->
-                <svg class="car-chassis-svg" viewBox="0 0 180 320" xmlns="http://www.w3.org/2000/svg">
-                  <!-- Wheels Front -->
-                  <rect x="14" y="52" width="22" height="48" rx="7" class="svg-wheel" />
-                  <rect x="144" y="52" width="22" height="48" rx="7" class="svg-wheel" />
-                  
-                  <!-- Wheels Rear -->
-                  <rect x="14" y="222" width="22" height="48" rx="7" class="svg-wheel" />
-                  <rect x="144" y="222" width="22" height="48" rx="7" class="svg-wheel" />
+                <!-- REAL TECHNICAL CHASSIS IMAGE & ANIMATED ELECTRIC CIRCUIT OVERLAY -->
+                <div class="chassis-image-container">
+                  <img src="PICTURES/Esquema Dolphin Surf_v.jpg" alt="Esquema Técnico BYD Dolphin Surf" class="chassis-real-img">
+                  <!-- Animated Electric Flow Canvas/SVG Overlay -->
+                  <svg class="circuit-overlay-svg" viewBox="0 0 200 320" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <filter id="glowCircuit" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
+                    <!-- Battery to Motor Electric Current Flow Lines -->
+                    <path d="M 100 180 L 100 80" class="flow-line battery-flow" filter="url(#glowCircuit)" />
+                    <path d="M 60 160 L 60 90 L 100 80" class="flow-line left-bus" filter="url(#glowCircuit)" />
+                    <path d="M 140 160 L 140 90 L 100 80" class="flow-line right-bus" filter="url(#glowCircuit)" />
+                    
+                    <!-- Motor Hub Energy Pulse -->
+                    <circle cx="100" cy="80" r="14" class="motor-pulse-ring" />
+                    <circle cx="100" cy="80" r="6" class="motor-pulse-core" />
 
-                  <!-- Axles -->
-                  <line x1="36" y1="76" x2="144" y2="76" class="svg-axle" />
-                  <line x1="36" y1="246" x2="144" y2="246" class="svg-axle" />
-
-                  <!-- High-Tech Aerodynamic Car Body Contour (Theme Reactive) -->
-                  <path d="M 52 24
-                           C 70 12, 110 12, 128 24
-                           C 146 38, 154 75, 154 110
-                           C 154 160, 156 220, 150 270
-                           C 146 295, 126 308, 90 308
-                           C 54 308, 34 295, 30 270
-                           C 24 220, 26 160, 26 110
-                           C 26 75, 34 38, 52 24 Z"
-                        class="svg-car-body" />
-
-                  <!-- EV Battery Pack in Center Chassis -->
-                  <rect x="44" y="118" width="92" height="96" rx="10" class="svg-battery-pack" />
-                  <line x1="90" y1="126" x2="90" y2="206" class="svg-battery-core" />
-                  <line x1="66" y1="166" x2="114" y2="166" class="svg-battery-core" />
-
-                  <!-- Cabin & Panoramic Glass Roof -->
-                  <path d="M 50 82
-                           C 64 68, 116 68, 130 82
-                           C 140 100, 142 165, 138 234
-                           C 126 244, 54 244, 42 234
-                           C 38 165, 40 100, 50 82 Z"
-                        class="svg-cabin-glass" />
-
-                  <!-- Headlights & Taillights Accents -->
-                  <path d="M 46 28 Q 56 22 66 28" class="svg-light-beam front" />
-                  <path d="M 114 28 Q 124 22 134 28" class="svg-light-beam front" />
-                  <line x1="42" y1="302" x2="138" y2="302" class="svg-light-beam rear" />
-                </svg>
+                    <!-- Battery Pack Pulsing Glow Rect -->
+                    <rect x="52" y="145" width="96" height="85" rx="8" class="battery-glow-mesh" />
+                  </svg>
+                </div>
 
                 <!-- BOTTOM TIRES (REAR) -->
                 <div class="tire-indicator tire-bottom-left">

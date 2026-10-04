@@ -594,17 +594,6 @@ export function initApp() {
     });
   }
 
-        updateCalculations();
-        renderTrips();
-        showToast(`✓ Precios oficiales actualizados: Luz ${data.kwhGrid}€/kWh · Gasolina ${data.gas95}€/L`);
-      } catch (err) {
-        showToast(`No se pudieron obtener precios: ${err.message}`);
-      } finally {
-        fetchMarketBtn.disabled = false;
-        fetchMarketBtn.textContent = '📡 Obtener medias hoy (REE / MITECO)';
-      }
-    });
-  }
 
   const backendInput = document.getElementById('cfg-backend-url');
   if (backendInput) {
