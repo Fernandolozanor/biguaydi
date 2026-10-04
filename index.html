@@ -65,9 +65,9 @@
         </div>
 
         <div class="top-actions">
-          <div class="mode-badge">
-            <span class="status-beacon" style="width:6px;height:6px;"></span>
-            <span>DATOS ACTIVOS</span>
+          <div class="mode-badge clickable" id="top-sync-badge" title="Toca para sincronizar con BYD Cloud">
+            <span class="status-beacon" id="top-sync-beacon" style="width:6px;height:6px;"></span>
+            <span id="top-sync-text">DATOS ACTIVOS</span>
           </div>
         </div>
       </header>
@@ -578,9 +578,13 @@
                   <input type="password" id="byd-input-pass" placeholder="••••••••">
                 </div>
               </div>
-              <div style="display:flex; align-items:center; gap:8px; margin:10px 0 14px;">
+              <div style="display:flex; align-items:center; gap:8px; margin:10px 0 6px;">
                 <input type="checkbox" id="vault-remember-me" checked style="accent-color:var(--accent); width:16px; height:16px;">
                 <label for="vault-remember-me" style="font-size:12px; color:var(--text-muted); cursor:pointer;">Mantener bóveda desbloqueada en este móvil</label>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; margin:0 0 14px;">
+                <input type="checkbox" id="vault-setup-auto-sync" checked style="accent-color:var(--accent); width:16px; height:16px;">
+                <label for="vault-setup-auto-sync" style="font-size:12px; color:var(--text-muted); cursor:pointer;">Conectar automáticamente al abrir la app</label>
               </div>
               <button class="action-btn active" id="vault-save-btn" style="width:100%; justify-content:center; padding:12px; margin-top:4px;">
                 🔒 Cifrar y Guardar en este dispositivo
@@ -612,13 +616,19 @@
               <div style="background:rgba(var(--accent-rgb), 0.1); border:1px solid rgba(var(--accent-rgb), 0.3); border-radius:8px; padding:14px; color:var(--accent); margin-bottom:12px;">
                 ✓ Bóveda descifrada en memoria RAM. Tus credenciales están protegidas localmente.
               </div>
+              <div style="display:flex; align-items:center; gap:10px; margin:0 0 14px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid var(--panel-border);">
+                <input type="checkbox" id="cfg-auto-sync-boot" checked style="accent-color:var(--accent); width:18px; height:18px; cursor:pointer;">
+                <label for="cfg-auto-sync-boot" style="font-size:13px; color:var(--text); cursor:pointer; font-weight:500;">
+                  Conectar automáticamente al abrir la app
+                </label>
+              </div>
               <button class="action-btn active" id="vault-sync-now-btn" style="width:100%; justify-content:center; padding:12px; margin-bottom:10px;">
                 🔄 Sincronizar coche ahora
               </button>
               <div class="calc-control-group" style="margin-top:12px;">
                 <label>URL del Conector Backend (Render / Nube):</label>
                 <div class="calc-input-wrapper">
-                  <input type="url" id="cfg-backend-url" placeholder="https://tu-servicio-render.onrender.com">
+                  <input type="url" id="cfg-backend-url" placeholder="https://biguaydi-api.onrender.com">
                 </div>
               </div>
               <button class="action-btn" id="vault-wipe-btn" style="width:100%; justify-content:center; padding:10px; margin-top:8px; color:var(--danger); border-color:var(--danger);">

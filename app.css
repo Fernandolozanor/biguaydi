@@ -369,6 +369,57 @@ body[data-size="5"] { font-size: 18px; }
   display: flex;
   align-items: center;
   gap: 6px;
+  transition: all 0.25s ease;
+}
+
+.mode-badge.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-badge.clickable:hover {
+  background: rgba(var(--accent-rgb), 0.2);
+  border-color: rgba(var(--accent-rgb), 0.6);
+  transform: translateY(-1px);
+}
+
+.mode-badge.clickable:active {
+  transform: translateY(1px);
+}
+
+.mode-badge.syncing {
+  border-color: #f59e0b;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.mode-badge.syncing .status-beacon {
+  background: #f59e0b;
+  box-shadow: 0 0 10px #f59e0b;
+  animation: pulse 0.7s infinite;
+}
+
+.mode-badge.connected {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.15);
+}
+
+.mode-badge.connected .status-beacon {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.mode-badge.error {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.mode-badge.error .status-beacon {
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+  animation: none;
 }
 
 .content-body {

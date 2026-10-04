@@ -687,8 +687,16 @@ function initSecurityVault() {
           localStorage.removeItem('biguaydi_vault_session');
         }
 
+        const autoSyncSetup = document.getElementById('vault-setup-auto-sync')?.checked;
+        if (autoSyncSetup !== undefined) {
+          localStorage.setItem('biguaydi_auto_sync', autoSyncSetup ? 'true' : 'false');
+        }
+
         showToast('Credenciales cifradas con éxito');
         updateVaultState();
+        if (localStorage.getItem('biguaydi_auto_sync') !== 'false') {
+          syncVehicleTelemetry(false);
+        }
       } catch (err) {
         showToast('Error al cifrar credenciales');
       }
@@ -712,6 +720,9 @@ function initSecurityVault() {
 
         showToast('Bóveda descifrada con éxito');
         updateVaultState();
+        if (localStorage.getItem('biguaydi_auto_sync') !== 'false') {
+          syncVehicleTelemetry(false);
+        }
       } catch (e) {
         showToast('PIN incorrecto');
       }
@@ -725,96 +736,157 @@ function initSecurityVault() {
         localStorage.removeItem('biguaydi_vault_session');
         window.__vaultDecrypted = null;
         updateVaultState();
+        updateTopSyncBadge('idle', 'DESCONECTADO');
         showToast('Datos locales borrados por completo');
       }
+    });
+  }
+
+  // Auto-sync setting checkbox
+  const autoSyncBootEl = document.getElementById('cfg-auto-sync-boot');
+  if (autoSyncBootEl) {
+    autoSyncBootEl.checked = localStorage.getItem('biguaydi_auto_sync') !== 'false';
+    autoSyncBootEl.addEventListener('change', (e) => {
+      localStorage.setItem('biguaydi_auto_sync', e.target.checked ? 'true' : 'false');
+      showToast(e.target.checked ? '✓ Conexión automática activada al abrir' : 'Conexión automática desactivada');
     });
   }
 
   // Live Sync trigger button
   const syncBtn = document.getElementById('vault-sync-now-btn');
   if (syncBtn) {
-    syncBtn.addEventListener('click', async () => {
-      if (!window.__vaultDecrypted) {
-        showToast('Desbloquea primero la bóveda con tu PIN');
-        return;
-      }
-      let backendUrl = (localStorage.getItem('biguaydi_backend_url') || '').trim();
-      if (!backendUrl) {
-        showToast('Escribe primero la URL del conector de Render');
-        return;
-      }
-      backendUrl = backendUrl.replace(/\/+$/, '');
-      syncBtn.disabled = true;
-      syncBtn.textContent = '⏳ Conectando con BYD Cloud...';
-      try {
-        const resp = await fetch(`${backendUrl}/api/telemetry`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: window.__vaultDecrypted.user,
-            password: window.__vaultDecrypted.pass
-          })
-        });
-        let data = {};
-        try {
-          data = await resp.json();
-        } catch (_) {
-          data = { detail: resp.statusText };
-        }
-        if (!resp.ok) {
-          throw new Error(data.detail || `Error HTTP ${resp.status}`);
-        }
-
-        // Apply live telemetry to STATE
-        const rt = data.realtime || {};
-        const eg = data.energy || {};
-        if (rt.elec_percent !== undefined) STATE.vehicle.soc = Number(rt.elec_percent);
-        if (rt.endurance_mileage !== undefined) STATE.vehicle.range = Number(rt.endurance_mileage);
-        if (rt.total_mileage !== undefined) STATE.vehicle.odometer = Number(rt.total_mileage);
-        if (rt.vehicle_speed !== undefined) STATE.vehicle.speed = Number(rt.vehicle_speed);
-        if (eg.nearest_energy_consumption?.avg_ev_consumption) {
-          STATE.vehicle.avgConsumption50km = Number(eg.nearest_energy_consumption.avg_ev_consumption);
-        }
-
-        // Check if odometer has advanced to automatically record completed trip
-        const prevOdo = Number(localStorage.getItem('biguaydi-recorder-odo')) || STATE.vehicle.odometer;
-        if (rt.total_mileage && Number(rt.total_mileage) > prevOdo) {
-          const delta = Number((Number(rt.total_mileage) - prevOdo).toFixed(1));
-          if (delta >= 0.3) {
-            const avgWh = Math.round((STATE.vehicle.avgConsumption50km || 13.8) * 10);
-            const autoTrip = {
-              id: Date.now(),
-              title: `Ruta Detectada (${delta} km)`,
-              date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-              distance: delta,
-              energy: Number(((delta * avgWh) / 1000).toFixed(2)),
-              avgWh: avgWh,
-              duration: Math.max(3, Math.round(delta * 1.6)) + ' min',
-              isNew: true
-            };
-            STATE.trips.unshift(autoTrip);
-            localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
-            renderTrips();
-            showToast(`🚗 ¡Trayecto completado detectado: ${delta} km guardados!`);
-          }
-        }
-        if (rt.total_mileage) {
-          localStorage.setItem('biguaydi-recorder-odo', rt.total_mileage);
-        }
-
-        renderVehicleHUD();
-        updateCalculations();
-        showToast('✓ Telemetría de BYD actualizada en vivo');
-      } catch (err) {
-        showToast(`Fallo de conexión: ${err.message}`);
-      } finally {
-        syncBtn.disabled = false;
-        syncBtn.textContent = '🔄 Sincronizar coche ahora';
-      }
+    syncBtn.addEventListener('click', () => {
+      syncVehicleTelemetry(false);
     });
   }
 
   updateVaultState();
+}
+
+// --- TOP BAR SYNC STATUS BADGE ---
+export function updateTopSyncBadge(status, customText) {
+  const badge = document.getElementById('top-sync-badge');
+  const textEl = document.getElementById('top-sync-text');
+  if (!badge) return;
+
+  badge.classList.remove('syncing', 'connected', 'error');
+
+  if (status === 'syncing') {
+    badge.classList.add('syncing');
+    if (textEl) textEl.textContent = customText || 'CONECTANDO...';
+  } else if (status === 'connected') {
+    badge.classList.add('connected');
+    if (textEl) textEl.textContent = customText || 'CONECTADO';
+  } else if (status === 'error') {
+    badge.classList.add('error');
+    if (textEl) textEl.textContent = customText || 'RECONECTAR';
+  } else {
+    if (textEl) textEl.textContent = customText || 'DATOS ACTIVOS';
+  }
+}
+
+// --- TELEMETRY SYNC ENGINE ---
+export async function syncVehicleTelemetry(isAutoBoot = false) {
+  const syncBtn = document.getElementById('vault-sync-now-btn');
+
+  if (!window.__vaultDecrypted) {
+    if (!isAutoBoot) {
+      showToast('Desbloquea primero la bóveda con tu PIN');
+    }
+    updateTopSyncBadge('idle', 'DESCONECTADO');
+    return false;
+  }
+
+  let backendUrl = (localStorage.getItem('biguaydi_backend_url') || '').trim();
+  if (!backendUrl) {
+    backendUrl = 'https://biguaydi-api.onrender.com';
+  }
+  backendUrl = backendUrl.replace(/\/+$/, '');
+
+  if (syncBtn) {
+    syncBtn.disabled = true;
+    syncBtn.textContent = '⏳ Conectando con BYD Cloud...';
+  }
+  updateTopSyncBadge('syncing', 'CONECTANDO...');
+
+  try {
+    const resp = await fetch(`${backendUrl}/api/telemetry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: window.__vaultDecrypted.user,
+        password: window.__vaultDecrypted.pass
+      })
+    });
+
+    let data = {};
+    try {
+      data = await resp.json();
+    } catch (_) {
+      data = { detail: resp.statusText };
+    }
+
+    if (!resp.ok) {
+      throw new Error(data.detail || `Error HTTP ${resp.status}`);
+    }
+
+    // Apply live telemetry to STATE
+    const rt = data.realtime || {};
+    const eg = data.energy || {};
+    if (rt.elec_percent !== undefined) STATE.vehicle.soc = Number(rt.elec_percent);
+    if (rt.endurance_mileage !== undefined) STATE.vehicle.range = Number(rt.endurance_mileage);
+    if (rt.total_mileage !== undefined) STATE.vehicle.odometer = Number(rt.total_mileage);
+    if (rt.vehicle_speed !== undefined) STATE.vehicle.speed = Number(rt.vehicle_speed);
+    if (eg.nearest_energy_consumption?.avg_ev_consumption) {
+      STATE.vehicle.avgConsumption50km = Number(eg.nearest_energy_consumption.avg_ev_consumption);
+    }
+
+    // Check if odometer has advanced to automatically record completed trip
+    const prevOdo = Number(localStorage.getItem('biguaydi-recorder-odo')) || STATE.vehicle.odometer;
+    if (rt.total_mileage && Number(rt.total_mileage) > prevOdo) {
+      const delta = Number((Number(rt.total_mileage) - prevOdo).toFixed(1));
+      if (delta >= 0.3) {
+        const avgWh = Math.round((STATE.vehicle.avgConsumption50km || 13.8) * 10);
+        const autoTrip = {
+          id: Date.now(),
+          title: `Ruta Detectada (${delta} km)`,
+          date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          distance: delta,
+          energy: Number(((delta * avgWh) / 1000).toFixed(2)),
+          avgWh: avgWh,
+          duration: Math.max(3, Math.round(delta * 1.6)) + ' min',
+          isNew: true
+        };
+        STATE.trips.unshift(autoTrip);
+        localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+        renderTrips();
+        showToast(`🚗 ¡Trayecto completado detectado: ${delta} km guardados!`);
+      }
+    }
+    if (rt.total_mileage) {
+      localStorage.setItem('biguaydi-recorder-odo', rt.total_mileage);
+    }
+
+    renderVehicleHUD();
+    updateCalculations();
+    updateTopSyncBadge('connected', 'CONECTADO');
+    showToast(isAutoBoot ? '⚡ Coche conectado automáticamente al abrir la app' : '✓ Telemetría de BYD actualizada en vivo');
+    return true;
+  } catch (err) {
+    updateTopSyncBadge('error', 'RECONECTAR');
+    if (!isAutoBoot) {
+      showToast(`Fallo de conexión: ${err.message}`);
+    } else {
+      console.warn('Auto-boot sync notice:', err.message);
+      showToast(`Aviso al abrir: No se pudo conectar (${err.message})`);
+    }
+    return false;
+  } finally {
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.textContent = '🔄 Sincronizar coche ahora';
+    }
+  }
 }
 
 // --- INIT APP ---
@@ -827,6 +899,25 @@ export function initApp() {
   renderTrips();
   initAutoTripRecorder();
   initSecurityVault();
+
+  // Top sync badge click listener (quick sync from anywhere)
+  const topSyncBadge = document.getElementById('top-sync-badge');
+  if (topSyncBadge) {
+    topSyncBadge.addEventListener('click', (e) => {
+      e.preventDefault();
+      syncVehicleTelemetry(false);
+    });
+  }
+
+  // Automatic connection on app startup if session is saved
+  const autoSyncOnBoot = localStorage.getItem('biguaydi_auto_sync') !== 'false';
+  if (autoSyncOnBoot && window.__vaultDecrypted) {
+    setTimeout(() => {
+      syncVehicleTelemetry(true);
+    }, 350);
+  } else if (window.__vaultDecrypted) {
+    updateTopSyncBadge('connected', 'BÓVEDA LISTA');
+  }
 
   // Theme choices (strictly scoped to theme picker buttons with data-theme)
   document.querySelectorAll('.theme-picker-row [data-theme]').forEach(btn => {
