@@ -861,6 +861,7 @@ export async function syncVehicleTelemetry(isAutoBoot = false) {
     renderVehicleHUD();
     updateCalculations();
     updateTopSyncBadge('connected', 'CONECTADO');
+    lastTelemetrySyncTime = Date.now();
     showToast(isAutoBoot ? '⚡ Coche conectado automáticamente al abrir la app' : '✓ Telemetría de BYD actualizada en vivo');
     return true;
   } catch (err) {
@@ -966,59 +967,21 @@ export function initApp() {
   bindInput('cfg-ice-cons', 'prices', 'iceConsumption');
   bindInput('cfg-diesel-cons', 'prices', 'dieselConsumption');
 
-  // Daily market prices fetcher (REE & MITECO)
+  // Daily market prices fetcher manual button
   const fetchMarketBtn = document.getElementById('btn-fetch-market-prices');
   if (fetchMarketBtn) {
-    fetchMarketBtn.addEventListener('click', async () => {
-      let backendUrl = (localStorage.getItem('biguaydi_backend_url') || 'https://biguaydi-api.onrender.com').trim().replace(/\/+$/, '');
-      fetchMarketBtn.disabled = true;
-      fetchMarketBtn.textContent = '⏳ Consultando REE y MITECO...';
-      try {
-        const resp = await fetch(`${backendUrl}/api/prices`);
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Error consultando precios');
-        
-        let dateStr = new Date().toLocaleDateString('es-ES');
-        if (data.date) {
-          const parts = data.date.split('-');
-          if (parts.length === 3) {
-            dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
-          }
-        }
-        STATE.prices.date = dateStr;
-        localStorage.setItem('biguaydi-prices-date', dateStr);
-
-        if (data.kwhGrid) {
-          STATE.prices.kwhGrid = Number(data.kwhGrid);
-          localStorage.setItem('biguaydi-kwh-grid', data.kwhGrid);
-          const inpGrid = document.getElementById('cfg-kwh-grid');
-          if (inpGrid) inpGrid.value = data.kwhGrid;
-        }
-        if (data.gas95) {
-          STATE.prices.gas95 = Number(data.gas95);
-          localStorage.setItem('biguaydi-gas-price', data.gas95);
-          const inpGas = document.getElementById('cfg-gas-price');
-          if (inpGas) inpGas.value = data.gas95;
-        }
-        if (data.diesel) {
-          STATE.prices.diesel = Number(data.diesel);
-          localStorage.setItem('biguaydi-diesel', data.diesel);
-          const inpDie = document.getElementById('cfg-diesel-price');
-          if (inpDie) inpDie.value = data.diesel;
-        }
-
-        updateCalculations();
-        renderTrips();
-        showToast(`✓ Precios oficiales actualizados (${dateStr}): Luz ${data.kwhGrid}€/kWh · Gasolina ${data.gas95}€/L · Diésel ${data.diesel}€/L`);
-      } catch (err) {
-        showToast(`No se pudieron obtener precios: ${err.message}`);
-      } finally {
-        fetchMarketBtn.disabled = false;
-        fetchMarketBtn.textContent = '📡 Obtener medias hoy (REE / MITECO)';
-      }
+    fetchMarketBtn.addEventListener('click', () => {
+      refreshMarketPrices(false);
     });
   }
 
+  // Auto-refresh daily electricity & fuel prices on startup if not updated today
+  const todayStr = new Date().toLocaleDateString('es-ES');
+  if (STATE.prices.date !== todayStr) {
+    setTimeout(() => {
+      refreshMarketPrices(true);
+    }, 600);
+  }
 
   const backendInput = document.getElementById('cfg-backend-url');
   if (backendInput) {
@@ -1028,10 +991,125 @@ export function initApp() {
     });
   }
 
-  // Register service worker for PWA
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  // Initialize Aggressive Service Worker Auto-Update
+  initServiceWorkerAutoUpdate();
+}
+
+// --- DAILY MARKET PRICES FETCHER (REE & MITECO) ---
+export async function refreshMarketPrices(silent = false) {
+  const fetchMarketBtn = document.getElementById('btn-fetch-market-prices');
+  let backendUrl = (localStorage.getItem('biguaydi_backend_url') || '').trim();
+  if (!backendUrl) {
+    backendUrl = 'https://biguaydi-api.onrender.com';
   }
+  backendUrl = backendUrl.replace(/\/+$/, '');
+
+  if (fetchMarketBtn) {
+    fetchMarketBtn.disabled = true;
+    fetchMarketBtn.textContent = '⏳ Consultando REE y MITECO...';
+  }
+
+  try {
+    const resp = await fetch(`${backendUrl}/api/prices`);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Error consultando precios');
+
+    let dateStr = new Date().toLocaleDateString('es-ES');
+    if (data.date) {
+      const parts = data.date.split('-');
+      if (parts.length === 3) {
+        dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    STATE.prices.date = dateStr;
+    localStorage.setItem('biguaydi-prices-date', dateStr);
+
+    if (data.kwhGrid) {
+      STATE.prices.kwhGrid = Number(data.kwhGrid);
+      localStorage.setItem('biguaydi-kwh-grid', data.kwhGrid);
+      const inpGrid = document.getElementById('cfg-kwh-grid');
+      if (inpGrid) inpGrid.value = data.kwhGrid;
+    }
+    if (data.gas95) {
+      STATE.prices.gas95 = Number(data.gas95);
+      localStorage.setItem('biguaydi-gas-price', data.gas95);
+      const inpGas = document.getElementById('cfg-gas-price');
+      if (inpGas) inpGas.value = data.gas95;
+    }
+    if (data.diesel) {
+      STATE.prices.diesel = Number(data.diesel);
+      localStorage.setItem('biguaydi-diesel', data.diesel);
+      const inpDie = document.getElementById('cfg-diesel-price');
+      if (inpDie) inpDie.value = data.diesel;
+    }
+
+    updateCalculations();
+    renderTrips();
+    if (!silent) {
+      showToast(`✓ Precios oficiales actualizados (${dateStr}): Luz ${data.kwhGrid}€/kWh · Gasolina ${data.gas95}€/L · Diésel ${data.diesel}€/L`);
+    }
+  } catch (err) {
+    if (!silent) {
+      showToast(`No se pudieron obtener precios: ${err.message}`);
+    }
+  } finally {
+    if (fetchMarketBtn) {
+      fetchMarketBtn.disabled = false;
+      fetchMarketBtn.textContent = '📡 Obtener medias hoy (REE / MITECO)';
+    }
+  }
+}
+
+// --- PWA SERVICE WORKER AUTO-UPDATE ENGINE ---
+let lastTelemetrySyncTime = 0;
+
+function initServiceWorkerAutoUpdate() {
+  if (!('serviceWorker' in navigator)) return;
+
+  let isRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      window.location.reload();
+    }
+  });
+
+  navigator.serviceWorker.register('./sw.js').then((reg) => {
+    // 1. Force check for updates every time app opens
+    reg.update().catch(() => {});
+
+    // 2. If a new service worker is already waiting, activate immediately
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    // 3. When an update is detected, activate as soon as installed
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (newWorker) {
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      }
+    });
+  }).catch(() => {});
+
+  // 4. Also check for update whenever the user returns to the app / unlocks phone
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg) reg.update().catch(() => {});
+      }).catch(() => {});
+
+      // Refresh vehicle telemetry if more than 5 minutes have passed
+      const autoSyncEnabled = localStorage.getItem('biguaydi_auto_sync') !== 'false';
+      if (autoSyncEnabled && window.__vaultDecrypted && (Date.now() - lastTelemetrySyncTime > 5 * 60 * 1000)) {
+        syncVehicleTelemetry(true);
+      }
+    }
+  });
 }
 
 // Auto start when DOM is ready

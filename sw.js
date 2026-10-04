@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v9-wide-trips-chart';
+const CACHE = 'biguaydi-v10-auto-refresh';
 const ASSETS = [
   './',
   './index.html',
@@ -25,13 +25,23 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first strategy for app files: always get latest from GitHub, fallback to cache offline
+// Immediate activation message listener
+self.addEventListener('message', (event) => {
+  if (event.data && (event.data.type === 'SKIP_WAITING' || event.data === 'skipWaiting')) {
+    self.skipWaiting();
+  }
+});
+
+// Network-first with no-cache strategy: always retrieve latest version from GitHub Pages, fallback to cache offline
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Ignore external API endpoints (Render backend, REE, MITECO)
+  if (!event.request.url.startsWith(self.location.origin)) return;
+
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-cache' })
       .then((response) => {
-        if (response.ok && event.request.url.startsWith(self.location.origin)) {
+        if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE).then((cache) => cache.put(event.request, copy));
         }
