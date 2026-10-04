@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v3-zenith-chassis';
+const CACHE = 'biguaydi-v4-typography-polish';
 const ASSETS = [
   './',
   './index.html',
