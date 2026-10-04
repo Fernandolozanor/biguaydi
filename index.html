@@ -386,10 +386,19 @@
 
             <!-- VAULT ACTIVE BOX -->
             <div id="vault-active-box" hidden style="margin-top:18px;">
-              <div style="background:rgba(var(--accent-rgb), 0.1); border:1px solid rgba(var(--accent-rgb), 0.3); border-radius:8px; padding:14px; color:var(--accent);">
+              <div style="background:rgba(var(--accent-rgb), 0.1); border:1px solid rgba(var(--accent-rgb), 0.3); border-radius:8px; padding:14px; color:var(--accent); margin-bottom:12px;">
                 ✓ Bóveda descifrada en memoria RAM. Tus credenciales están protegidas localmente.
               </div>
-              <button class="theme-btn" id="vault-wipe-btn" style="width:100%; justify-content:center; padding:12px; margin-top:12px; color:var(--danger); border-color:var(--danger);">
+              <button class="theme-btn active" id="vault-sync-now-btn" style="width:100%; justify-content:center; padding:12px; margin-bottom:10px;">
+                🔄 Sincronizar coche ahora
+              </button>
+              <div class="calc-control-group" style="margin-top:12px;">
+                <label>URL del Conector Backend (Render / Nube):</label>
+                <div class="calc-input-wrapper">
+                  <input type="url" id="cfg-backend-url" placeholder="https://tu-servicio-render.onrender.com">
+                </div>
+              </div>
+              <button class="theme-btn" id="vault-wipe-btn" style="width:100%; justify-content:center; padding:10px; margin-top:8px; color:var(--danger); border-color:var(--danger);">
                 🗑️ Borrar credenciales y destruir bóveda local
               </button>
             </div>

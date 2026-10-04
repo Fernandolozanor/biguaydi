@@ -360,6 +360,52 @@ function initSecurityVault() {
     });
   }
 
+  // Live Sync trigger button
+  const syncBtn = document.getElementById('vault-sync-now-btn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      if (!window.__vaultDecrypted) {
+        showToast('Desbloquea primero la bóveda con tu PIN');
+        return;
+      }
+      const backendUrl = localStorage.getItem('biguaydi_backend_url') || 'http://localhost:8000';
+      syncBtn.disabled = true;
+      syncBtn.textContent = '⏳ Conectando con BYD Cloud...';
+      try {
+        const resp = await fetch(`${backendUrl}/api/telemetry`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: window.__vaultDecrypted.user,
+            password: window.__vaultDecrypted.pass
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Error consultando BYD');
+
+        // Apply live telemetry to STATE
+        const rt = data.realtime || {};
+        const eg = data.energy || {};
+        if (rt.elec_percent !== undefined) STATE.vehicle.soc = Number(rt.elec_percent);
+        if (rt.endurance_mileage !== undefined) STATE.vehicle.range = Number(rt.endurance_mileage);
+        if (rt.total_mileage !== undefined) STATE.vehicle.odometer = Number(rt.total_mileage);
+        if (rt.vehicle_speed !== undefined) STATE.vehicle.speed = Number(rt.vehicle_speed);
+        if (eg.nearest_energy_consumption?.avg_ev_consumption) {
+          STATE.vehicle.avgConsumption50km = Number(eg.nearest_energy_consumption.avg_ev_consumption);
+        }
+
+        renderVehicleHUD();
+        updateCalculations();
+        showToast('✓ Telemetría de BYD actualizada en vivo');
+      } catch (err) {
+        showToast(`Fallo de conexión: ${err.message}`);
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.textContent = '🔄 Sincronizar coche ahora';
+      }
+    });
+  }
+
   updateVaultState();
 }
 
@@ -418,6 +464,14 @@ export function initApp() {
   bindInput('cfg-solar-pct', 'prices', 'solarPct');
   bindInput('cfg-gas-price', 'prices', 'gas95');
   bindInput('cfg-ice-cons', 'prices', 'iceConsumption');
+
+  const backendInput = document.getElementById('cfg-backend-url');
+  if (backendInput) {
+    backendInput.value = localStorage.getItem('biguaydi_backend_url') || '';
+    backendInput.addEventListener('input', (e) => {
+      localStorage.setItem('biguaydi_backend_url', e.target.value.trim());
+    });
+  }
 
   // Register service worker for PWA
   if ('serviceWorker' in navigator) {
