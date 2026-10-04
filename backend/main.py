@@ -99,6 +99,7 @@ async def list_vehicles(req: ConnectRequest):
         raise HTTPException(status_code=502, detail=f"Error al conectar con la nube BYD: {str(exc)}")
 
 @app.post("/api/telemetry")
+@app.post("//api/telemetry")
 async def get_telemetry(req: FetchRequest):
     """Fetch current snapshot (realtime status & energy consumption) for vehicle."""
     try:
