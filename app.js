@@ -419,61 +419,57 @@ function renderTripsChart() {
   const chartBox = document.getElementById('trips-chart-container');
   if (!chartBox) return;
 
-  const trips = STATE.trips.slice(0, 6).reverse();
+  const trips = STATE.trips.slice(0, 8).reverse();
   if (trips.length === 0) {
     chartBox.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-dim); font-size:12px;">Sin datos suficientes para graficar</div>';
     return;
   }
 
-  const costPerKwh = getEffectiveElectricityPrice();
   const gasPrice = STATE.prices.gas95;
   const dieselPrice = STATE.prices.diesel;
   const iceCons = STATE.prices.iceConsumption;
   const dieselCons = STATE.prices.dieselConsumption;
 
   const data = trips.map(t => {
-    const costEv = t.energy * costPerKwh;
     const costGas = (t.distance / 100) * iceCons * gasPrice;
     const costDiesel = (t.distance / 100) * dieselCons * dieselPrice;
     return {
       title: t.title.split(' ')[0] || `V${t.id}`,
       dist: t.distance.toFixed(1) + 'km',
       wh: t.avgWh,
-      costEv,
       costGas,
       costDiesel
     };
   });
 
-  const maxCost = Math.max(...data.map(d => Math.max(d.costEv, d.costGas, d.costDiesel)), 1.5);
+  const maxCost = Math.max(...data.map(d => Math.max(d.costGas, d.costDiesel)), 1.5);
   const minWh = Math.min(...data.map(d => d.wh), 100);
   const maxWh = Math.max(...data.map(d => d.wh), 200);
 
-  const W = Math.max(500, data.length * 96);
-  const H = 210;
-  const padL = 40;
-  const padR = 25;
-  const padT = 30;
-  const padB = 40;
+  // Widen chart canvas for desktop to utilize wide screens cleanly
+  const W = Math.max(900, data.length * 125);
+  const H = 250;
+  const padL = 52;
+  const padR = 30;
+  const padT = 34;
+  const padB = 46;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
   const slotW = plotW / data.length;
-  const barW = Math.min(18, (slotW - 20) / 3);
+  const barW = Math.min(26, Math.max(16, slotW * 0.22));
+  const barGap = 6;
   const linePoints = [];
 
   let barsSvg = '';
   data.forEach((d, i) => {
     const cx = padL + i * slotW + slotW / 2;
-    const xEv = cx - barW * 1.5;
-    const xGas = cx - barW * 0.5;
-    const xDiesel = cx + barW * 0.5;
+    const xGas = cx - barW - (barGap / 2);
+    const xDiesel = cx + (barGap / 2);
 
-    const hEv = Math.max(8, (d.costEv / maxCost) * plotH);
-    const hGas = Math.max(8, (d.costGas / maxCost) * plotH);
-    const hDiesel = Math.max(8, (d.costDiesel / maxCost) * plotH);
+    const hGas = Math.max(10, (d.costGas / maxCost) * plotH);
+    const hDiesel = Math.max(10, (d.costDiesel / maxCost) * plotH);
 
-    const yEv = padT + (plotH - hEv);
     const yGas = padT + (plotH - hGas);
     const yDiesel = padT + (plotH - hDiesel);
 
@@ -483,41 +479,44 @@ function renderTripsChart() {
 
     barsSvg += `
       <g class="chart-trip-group">
-        <!-- EV Bar -->
-        <rect x="${xEv}" y="${yEv}" width="${barW - 2}" height="${hEv}" rx="3" fill="url(#tripEvGrad)" />
-        <rect x="${xEv}" y="${yEv}" width="${barW - 2}" height="2" rx="1" fill="#fff" filter="url(#glowHead)" />
-        <text x="${xEv + (barW - 2)/2}" y="${yEv - 5}" font-size="9" fill="var(--accent)" text-anchor="middle" font-family="var(--mono)">${d.costEv.toFixed(2)}€</text>
+        <!-- Gasolina 95 Bar -->
+        <rect x="${xGas}" y="${yGas}" width="${barW}" height="${hGas}" rx="4" fill="url(#tripGasGrad)" />
+        <rect x="${xGas}" y="${yGas}" width="${barW}" height="2.5" rx="1" fill="#fff" filter="url(#glowGas)" />
+        <text x="${xGas + barW / 2}" y="${yGas - 6}" font-size="10.5" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
 
-        <!-- Gas Bar -->
-        <rect x="${xGas}" y="${yGas}" width="${barW - 2}" height="${hGas}" rx="3" fill="url(#tripGasGrad)" />
-        <rect x="${xGas}" y="${yGas}" width="${barW - 2}" height="2" rx="1" fill="#fff" filter="url(#glowGas)" />
-        <text x="${xGas + (barW - 2)/2}" y="${yGas - 5}" font-size="9" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(1)}€</text>
-
-        <!-- Diesel Bar -->
-        <rect x="${xDiesel}" y="${yDiesel}" width="${barW - 2}" height="${hDiesel}" rx="3" fill="url(#tripDieGrad)" />
-        <rect x="${xDiesel}" y="${yDiesel}" width="${barW - 2}" height="2" rx="1" fill="#fff" filter="url(#glowDie)" />
-        <text x="${xDiesel + (barW - 2)/2}" y="${yDiesel - 5}" font-size="9" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(1)}€</text>
+        <!-- Diésel A Bar -->
+        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="${hDiesel}" rx="4" fill="url(#tripDieGrad)" />
+        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="2.5" rx="1" fill="#fff" filter="url(#glowDie)" />
+        <text x="${xDiesel + barW / 2}" y="${yDiesel - 6}" font-size="10.5" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
 
         <!-- Labels -->
-        <text x="${cx}" y="${H - 18}" font-size="11" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
-        <text x="${cx}" y="${H - 5}" font-size="9.5" fill="var(--text-muted)" text-anchor="middle" font-family="var(--mono)">${d.dist}</text>
+        <text x="${cx}" y="${H - 22}" font-size="12" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
+        <text x="${cx}" y="${H - 7}" font-size="10.5" fill="var(--text-muted)" text-anchor="middle" font-family="var(--mono)">${d.dist}</text>
       </g>
     `;
   });
 
+  // Y-axis grid lines and price labels
+  const steps = 4;
+  let gridSvg = '';
+  for (let s = 0; s <= steps; s++) {
+    const yVal = padT + (plotH * (s / steps));
+    const euroVal = (maxCost * (1 - s / steps)).toFixed(1);
+    gridSvg += `
+      <line x1="${padL}" y1="${yVal}" x2="${W - padR}" y2="${yVal}" stroke="${s === steps ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)'}" stroke-dasharray="${s === steps ? 'none' : '4 4'}" />
+      <text x="${padL - 8}" y="${yVal + 3.5}" font-size="10" fill="var(--text-muted)" text-anchor="end" font-family="var(--mono)">${euroVal}€</text>
+    `;
+  }
+
   const pointsStr = linePoints.map(p => `${p.x},${p.y}`).join(' ');
   const dotsSvg = linePoints.map(p => `
-    <circle cx="${p.x}" cy="${p.y}" r="4" fill="#4ce0d2" stroke="#060c0a" stroke-width="2" filter="url(#glowCyan)" />
-    <text x="${p.x}" y="${p.y - 8}" font-size="9" fill="#4ce0d2" text-anchor="middle" font-weight="700" font-family="var(--mono)">${p.val}</text>
+    <circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#4ce0d2" stroke="#060c0a" stroke-width="2" filter="url(#glowCyan)" />
+    <text x="${p.x}" y="${p.y - 8}" font-size="9.5" fill="#4ce0d2" text-anchor="middle" font-weight="700" font-family="var(--mono)">${p.val}</text>
   `).join('');
 
   chartBox.innerHTML = `
     <svg class="trips-svg-canvas" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <linearGradient id="tripEvGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="var(--accent)" />
-          <stop offset="100%" stop-color="#0b3823" />
-        </linearGradient>
         <linearGradient id="tripGasGrad" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#ff8c73" />
           <stop offset="100%" stop-color="#4d170c" />
@@ -526,10 +525,6 @@ function renderTripsChart() {
           <stop offset="0%" stop-color="#f5cc7f" />
           <stop offset="100%" stop-color="#47310a" />
         </linearGradient>
-        <filter id="glowHead" x="-20%" y="-50%" width="140%" height="200%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
         <filter id="glowGas" x="-20%" y="-50%" width="140%" height="200%">
           <feGaussianBlur stdDeviation="2" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
@@ -544,14 +539,10 @@ function renderTripsChart() {
         </filter>
       </defs>
 
-      <line x1="${padL}" y1="${padT + plotH * 0.25}" x2="${W - padR}" y2="${padT + plotH * 0.25}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
-      <line x1="${padL}" y1="${padT + plotH * 0.5}" x2="${W - padR}" y2="${padT + plotH * 0.5}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
-      <line x1="${padL}" y1="${padT + plotH * 0.75}" x2="${W - padR}" y2="${padT + plotH * 0.75}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
-      <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(255,255,255,0.15)" />
-
+      ${gridSvg}
       ${barsSvg}
 
-      <polyline fill="none" stroke="#4ce0d2" stroke-width="2.5" stroke-dasharray="4 3" points="${pointsStr}" opacity="0.85" />
+      <polyline fill="none" stroke="#4ce0d2" stroke-width="2.5" stroke-dasharray="4 3" points="${pointsStr}" opacity="0.9" />
       ${dotsSvg}
     </svg>
   `;

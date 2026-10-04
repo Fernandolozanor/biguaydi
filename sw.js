@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v8-auto-connect';
+const CACHE = 'biguaydi-v9-wide-trips-chart';
 const ASSETS = [
   './',
   './index.html',

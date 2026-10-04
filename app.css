@@ -1320,18 +1320,16 @@ body[data-size="5"] { font-size: 18px; }
 
 .trips-svg-container {
   width: 100%;
-  min-height: 230px;
   position: relative;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 8px 0;
+  padding: 12px 0 6px;
   -webkit-overflow-scrolling: touch;
 }
 
 .trips-svg-canvas {
   width: 100%;
-  min-width: 520px;
-  height: 220px;
+  height: 270px;
   display: block;
 }
 
@@ -1642,5 +1640,9 @@ body[data-size="5"] { font-size: 18px; }
   .savings-dual-grid {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+  .trips-svg-canvas {
+    min-width: 580px;
+    height: 230px;
   }
 }
