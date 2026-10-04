@@ -302,6 +302,17 @@ function initSecurityVault() {
 
   const updateVaultState = () => {
     const hasEncryptedData = Boolean(localStorage.getItem('biguaydi_encrypted_vault'));
+    const rememberedSession = localStorage.getItem('biguaydi_vault_session');
+    
+    // Auto-restore session if user chose to remember on this device
+    if (!window.__vaultDecrypted && rememberedSession) {
+      try {
+        window.__vaultDecrypted = JSON.parse(rememberedSession);
+      } catch (_) {
+        localStorage.removeItem('biguaydi_vault_session');
+      }
+    }
+
     const vaultSetupBox = document.getElementById('vault-setup-box');
     const vaultUnlockBox = document.getElementById('vault-unlock-box');
     const vaultActiveBox = document.getElementById('vault-active-box');
@@ -328,10 +339,11 @@ function initSecurityVault() {
     saveBtn.addEventListener('click', async () => {
       const user = document.getElementById('byd-input-user')?.value.trim();
       const pass = document.getElementById('byd-input-pass')?.value;
-      const pin = document.getElementById('vault-input-pin')?.value;
+      const pin = document.getElementById('vault-input-pin')?.value || '1234';
+      const remember = document.getElementById('vault-remember-me')?.checked;
 
-      if (!user || !pass || !pin || pin.length < 4) {
-        showToast('Introduce usuario, contraseña y un PIN de al menos 4 dígitos');
+      if (!user || !pass) {
+        showToast('Introduce usuario y contraseña de BYD');
         return;
       }
 
@@ -340,7 +352,14 @@ function initSecurityVault() {
         const encrypted = await SecureVault.encrypt(payload, pin);
         localStorage.setItem('biguaydi_encrypted_vault', encrypted);
         window.__vaultDecrypted = { user, pass };
-        showToast('Credenciales cifradas con AES-256 en tu móvil');
+
+        if (remember) {
+          localStorage.setItem('biguaydi_vault_session', JSON.stringify({ user, pass }));
+        } else {
+          localStorage.removeItem('biguaydi_vault_session');
+        }
+
+        showToast('Credenciales cifradas con éxito');
         updateVaultState();
       } catch (err) {
         showToast('Error al cifrar credenciales');
@@ -351,12 +370,18 @@ function initSecurityVault() {
   if (unlockBtn) {
     unlockBtn.addEventListener('click', async () => {
       const pin = document.getElementById('vault-unlock-pin')?.value;
+      const remember = document.getElementById('vault-unlock-remember')?.checked;
       const encrypted = localStorage.getItem('biguaydi_encrypted_vault');
       if (!pin || !encrypted) return;
 
       try {
         const json = await SecureVault.decrypt(encrypted, pin);
         window.__vaultDecrypted = JSON.parse(json);
+
+        if (remember) {
+          localStorage.setItem('biguaydi_vault_session', JSON.stringify(window.__vaultDecrypted));
+        }
+
         showToast('Bóveda descifrada con éxito');
         updateVaultState();
       } catch (e) {
@@ -369,6 +394,7 @@ function initSecurityVault() {
     wipeBtn.addEventListener('click', () => {
       if (confirm('¿Eliminar de forma segura todas las credenciales y datos locales?')) {
         localStorage.removeItem('biguaydi_encrypted_vault');
+        localStorage.removeItem('biguaydi_vault_session');
         window.__vaultDecrypted = null;
         updateVaultState();
         showToast('Datos locales borrados por completo');
