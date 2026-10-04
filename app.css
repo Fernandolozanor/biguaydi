@@ -262,6 +262,43 @@ body[data-size="5"] { font-size: 18px; }
   z-index: 90;
 }
 
+.top-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-brand-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 0.45));
+  transition: transform 0.25s ease;
+}
+
+.top-brand-icon:hover {
+  transform: scale(1.06);
+}
+
+.top-brand-text b {
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  display: block;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.top-brand-text small {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--accent);
+  letter-spacing: 2px;
+  font-weight: 600;
+}
+
 .vehicle-selector-chip {
   display: flex;
   align-items: center;
