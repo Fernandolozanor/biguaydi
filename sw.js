@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v4-typography-polish';
+const CACHE = 'biguaydi-v5-dual-fuel-effects';
 const ASSETS = [
   './',
   './index.html',

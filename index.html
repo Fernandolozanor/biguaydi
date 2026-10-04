@@ -88,13 +88,23 @@
             <!-- 1. COMPACT BATTERY & RANGE RING -->
             <div class="hud-compact-battery">
               <div class="hud-ring-wrapper compact-ring">
+                <div class="hud-ring-glow-aura"></div>
                 <svg class="hud-ring-svg" viewBox="0 0 160 160">
-                  <circle class="hud-ring-bg" cx="80" cy="80" r="68"></circle>
-                  <circle class="hud-ring-progress" id="hud-soc-ring" cx="80" cy="80" r="68"></circle>
+                  <defs>
+                    <linearGradient id="batteryGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="var(--accent)" />
+                      <stop offset="100%" stop-color="var(--accent-secondary)" />
+                    </linearGradient>
+                  </defs>
+                  <circle class="hud-ring-ticks" cx="80" cy="80" r="74"></circle>
+                  <circle class="hud-ring-bg" cx="80" cy="80" r="66"></circle>
+                  <circle class="hud-ring-progress" id="hud-soc-ring" cx="80" cy="80" r="66"></circle>
                 </svg>
                 <div class="hud-ring-center">
-                  <b id="hud-soc-val">78</b>
-                  <small>% BATERÍA</small>
+                  <div class="hud-soc-badge">
+                    <b id="hud-soc-val">78</b><span class="hud-soc-symbol">%</span>
+                  </div>
+                  <small>BATERÍA</small>
                 </div>
               </div>
 
@@ -175,12 +185,12 @@
             <div class="tech-panel">
               <span class="overline">AHORRO MES EN CURSO</span>
               <div class="card-data-value" style="color:var(--accent); margin:8px 0;" id="calc-monthly-savings">88.4 €</div>
-              <p class="card-data-sub">Equivale a <b>3 repostajes</b> térmicos evitados.</p>
+              <p class="card-data-sub">Vs Gasolina: <b id="calc-savings-month-gas">95.6 €</b> · Vs Diésel: <b id="calc-savings-month-diesel">71.3 €</b></p>
             </div>
             <div class="tech-panel">
               <span class="overline">COSTO POR 100 KM</span>
               <div class="card-data-value" style="margin:8px 0;" id="calc-ev-cost-100">2.07 €</div>
-              <p class="card-data-sub">Frente a <b id="calc-ice-cost-100">10.04 €</b> en combustible.</p>
+              <p class="card-data-sub">Gasolina: <b id="calc-ice-gas-cost">10.04 €</b> · Diésel: <b id="calc-ice-diesel-cost">8.01 €</b></p>
             </div>
             <div class="tech-panel">
               <span class="overline">HUELLA EVITADA</span>
@@ -203,7 +213,7 @@
             <div class="tech-panel">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span class="overline">TUS TARIFAS Y FUENTE DE CARGA</span>
-                <button class="theme-btn" id="btn-fetch-market-prices" style="padding:4px 8px; font-size:11px;">
+                <button class="action-btn" id="btn-fetch-market-prices" style="padding:4px 10px; font-size:11.5px;">
                   📡 Obtener medias hoy (REE / MITECO)
                 </button>
               </div>
@@ -237,15 +247,7 @@
                 </div>
               </div>
 
-              <div style="margin-top:14px; margin-bottom:10px;">
-                <span class="overline">COMBUSTIBLE DE COMPARATIVA</span>
-                <div class="energy-chip-group" style="margin-top:8px;">
-                  <div class="fuel-chip energy-chip selected" data-fuel="gas95">⛽ Gasolina 95</div>
-                  <div class="fuel-chip energy-chip" data-fuel="diesel">🛢️ Diésel A</div>
-                </div>
-              </div>
-
-              <div class="calc-control-group">
+              <div class="calc-control-group" style="margin-top:16px;">
                 <label>Precio Gasolina 95 (€/Litro):</label>
                 <div class="calc-input-wrapper">
                   <input type="number" step="0.01" id="cfg-gas-price" value="1.62">
@@ -295,6 +297,7 @@
                   <div class="chart-bar electric" id="calc-bar-ev" style="height:25%;">
                     <div class="bar-glow-head"></div>
                   </div>
+                  <div class="pillar-base-glow"></div>
                   <span class="chart-bar-label">Dolphin Surf</span>
                   <small class="chart-bar-sub">Eléctrico</small>
                 </div>
@@ -305,6 +308,7 @@
                   <div class="chart-bar petrol" id="calc-bar-gas" style="height:88%;">
                     <div class="bar-glow-head"></div>
                   </div>
+                  <div class="pillar-base-glow"></div>
                   <span class="chart-bar-label">Gasolina 95</span>
                   <small class="chart-bar-sub">Térmico</small>
                 </div>
@@ -315,24 +319,36 @@
                   <div class="chart-bar diesel" id="calc-bar-diesel" style="height:72%;">
                     <div class="bar-glow-head"></div>
                   </div>
+                  <div class="pillar-base-glow"></div>
                   <span class="chart-bar-label">Diésel A</span>
                   <small class="chart-bar-sub">Gasóleo</small>
                 </div>
               </div>
 
-              <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <small style="color:var(--text-muted); font-size:12.5px; display:block; letter-spacing:0.5px; font-weight:600;">AHORRO POR CADA 100 KM</small>
-                  <b style="font-family:var(--display); font-size:26px; color:var(--accent);" id="calc-savings-100">7.97 €</b>
+              <!-- DUAL COMPARISON CARDS: GASOLINA 95 & DIÉSEL A -->
+              <div class="savings-dual-grid">
+                <div class="savings-dual-card gas">
+                  <div class="savings-dual-header">
+                    <span class="overline" style="color:#ff8c73; font-size:11px;">VS GASOLINA 95</span>
+                    <span class="badge-saving badge-gas" id="calc-savings-gas-pct">-79%</span>
+                  </div>
+                  <div class="savings-dual-val" id="calc-savings-gas-100">7.97 €</div>
+                  <div class="savings-dual-sub">Ahorro en 100 km (vs <span id="calc-gas-cost-100">10.04 €</span>)</div>
                 </div>
-                <div>
-                  <span class="badge-saving" style="font-size:16px; padding:6px 14px;" id="calc-savings-pct">-79%</span>
+
+                <div class="savings-dual-card diesel">
+                  <div class="savings-dual-header">
+                    <span class="overline" style="color:#e5c07b; font-size:11px;">VS DIÉSEL A</span>
+                    <span class="badge-saving badge-diesel" id="calc-savings-diesel-pct">-74%</span>
+                  </div>
+                  <div class="savings-dual-val" id="calc-savings-diesel-100">5.94 €</div>
+                  <div class="savings-dual-sub">Ahorro en 100 km (vs <span id="calc-diesel-cost-100">8.01 €</span>)</div>
                 </div>
               </div>
 
-              <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--panel-border); font-size:13px; color:var(--text-muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <div class="calc-footer-rates">
                 <span>Tarifa aplicada: <b id="calc-effective-rate" style="color:var(--accent);">0.000 €/kWh</b></span>
-                <span>Gasolina: <b id="calc-gas-cost-100" style="color:#ff8c73;">10.04 €</b> | Diésel: <b id="calc-diesel-cost-100" style="color:#e5c07b;">8.01 €</b></span>
+                <span>Base estimada: <b style="color:var(--text);">1.200 km/mes</b></span>
               </div>
             </div>
           </div>
@@ -473,7 +489,7 @@
                 <input type="checkbox" id="vault-remember-me" checked style="accent-color:var(--accent); width:16px; height:16px;">
                 <label for="vault-remember-me" style="font-size:12px; color:var(--text-muted); cursor:pointer;">Mantener bóveda desbloqueada en este móvil</label>
               </div>
-              <button class="theme-btn active" id="vault-save-btn" style="width:100%; justify-content:center; padding:12px; margin-top:4px;">
+              <button class="action-btn active" id="vault-save-btn" style="width:100%; justify-content:center; padding:12px; margin-top:4px;">
                 🔒 Cifrar y Guardar en este dispositivo
               </button>
             </div>
@@ -493,7 +509,7 @@
                 <input type="checkbox" id="vault-unlock-remember" checked style="accent-color:var(--accent); width:16px; height:16px;">
                 <label for="vault-unlock-remember" style="font-size:12px; color:var(--text-muted); cursor:pointer;">Recordar en este móvil (no volver a pedir PIN)</label>
               </div>
-              <button class="theme-btn active" id="vault-unlock-btn" style="width:100%; justify-content:center; padding:12px;">
+              <button class="action-btn active" id="vault-unlock-btn" style="width:100%; justify-content:center; padding:12px;">
                 🔓 Desbloquear Bóveda
               </button>
             </div>
@@ -503,7 +519,7 @@
               <div style="background:rgba(var(--accent-rgb), 0.1); border:1px solid rgba(var(--accent-rgb), 0.3); border-radius:8px; padding:14px; color:var(--accent); margin-bottom:12px;">
                 ✓ Bóveda descifrada en memoria RAM. Tus credenciales están protegidas localmente.
               </div>
-              <button class="theme-btn active" id="vault-sync-now-btn" style="width:100%; justify-content:center; padding:12px; margin-bottom:10px;">
+              <button class="action-btn active" id="vault-sync-now-btn" style="width:100%; justify-content:center; padding:12px; margin-bottom:10px;">
                 🔄 Sincronizar coche ahora
               </button>
               <div class="calc-control-group" style="margin-top:12px;">
@@ -512,7 +528,7 @@
                   <input type="url" id="cfg-backend-url" placeholder="https://tu-servicio-render.onrender.com">
                 </div>
               </div>
-              <button class="theme-btn" id="vault-wipe-btn" style="width:100%; justify-content:center; padding:10px; margin-top:8px; color:var(--danger); border-color:var(--danger);">
+              <button class="action-btn" id="vault-wipe-btn" style="width:100%; justify-content:center; padding:10px; margin-top:8px; color:var(--danger); border-color:var(--danger);">
                 🗑️ Borrar credenciales y destruir bóveda local
               </button>
             </div>
@@ -527,19 +543,19 @@
             </p>
 
             <div class="theme-picker-row">
-              <button class="theme-btn active" data-theme="original">
+              <button class="theme-btn theme-choice-btn active" data-theme="original">
                 <span style="background:#c7f36b;"></span> Original Verde Lima
               </button>
-              <button class="theme-btn" data-theme="blue">
+              <button class="theme-btn theme-choice-btn" data-theme="blue">
                 <span style="background:#6db6ff;"></span> Azul Eléctrico
               </button>
-              <button class="theme-btn" data-theme="red">
+              <button class="theme-btn theme-choice-btn" data-theme="red">
                 <span style="background:#ff7575;"></span> Rojo Coral
               </button>
-              <button class="theme-btn" data-theme="green">
+              <button class="theme-btn theme-choice-btn" data-theme="green">
                 <span style="background:#52e597;"></span> Verde Esmeralda
               </button>
-              <button class="theme-btn" data-theme="violet">
+              <button class="theme-btn theme-choice-btn" data-theme="violet">
                 <span style="background:#be8fff;"></span> Violeta Neón
               </button>
             </div>
