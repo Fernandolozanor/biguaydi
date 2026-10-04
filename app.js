@@ -65,12 +65,18 @@ window.showToast = showToast;
 
 // --- VIEW NAVIGATION ---
 function initNavigation() {
-  const navButtons = document.querySelectorAll('[data-target-view]');
-  navButtons.forEach(btn => {
+  const handleNavClick = (btn) => {
+    const targetView = btn.dataset.targetView;
+    if (targetView) {
+      switchView(targetView);
+    }
+  };
+
+  document.querySelectorAll('[data-target-view]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const targetView = btn.dataset.targetView;
-      switchView(targetView);
+      e.stopPropagation();
+      handleNavClick(btn);
     });
   });
 }
@@ -78,7 +84,13 @@ function initNavigation() {
 function switchView(viewName) {
   STATE.view = viewName;
   document.querySelectorAll('.app-view').forEach(view => {
-    view.classList.toggle('active', view.id === `view-${viewName}`);
+    const match = view.id === `view-${viewName}`;
+    view.classList.toggle('active', match);
+    if (match) {
+      view.style.display = 'block';
+    } else {
+      view.style.display = 'none';
+    }
   });
   document.querySelectorAll('[data-target-view]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.targetView === viewName);
