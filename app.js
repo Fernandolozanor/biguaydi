@@ -385,8 +385,15 @@ function initSecurityVault() {
             password: window.__vaultDecrypted.pass
           })
         });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Error consultando BYD');
+        let data = {};
+        try {
+          data = await resp.json();
+        } catch (_) {
+          data = { detail: resp.statusText };
+        }
+        if (!resp.ok) {
+          throw new Error(data.detail || `Error HTTP ${resp.status}`);
+        }
 
         // Apply live telemetry to STATE
         const rt = data.realtime || {};
