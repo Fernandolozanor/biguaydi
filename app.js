@@ -368,7 +368,12 @@ function initSecurityVault() {
         showToast('Desbloquea primero la bóveda con tu PIN');
         return;
       }
-      const backendUrl = localStorage.getItem('biguaydi_backend_url') || 'http://localhost:8000';
+      let backendUrl = (localStorage.getItem('biguaydi_backend_url') || '').trim();
+      if (!backendUrl) {
+        showToast('Escribe primero la URL del conector de Render');
+        return;
+      }
+      backendUrl = backendUrl.replace(/\/+$/, '');
       syncBtn.disabled = true;
       syncBtn.textContent = '⏳ Conectando con BYD Cloud...';
       try {
