@@ -455,69 +455,191 @@ body[data-size="5"] { font-size: 18px; }
   background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.3), transparent);
 }
 
-/* DASHBOARD HUD */
-.hero-hud-card {
+/* COMPACT HIGH-TECH HERO OVERVIEW */
+.hero-hud-card.compact-overview {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 24px;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 20px;
   align-items: center;
-  padding: 30px;
-  margin-bottom: 24px;
-  background: radial-gradient(circle at 10% 50%, rgba(var(--accent-rgb), 0.08) 0%, var(--panel) 100%);
+  padding: 18px 24px;
+  margin-bottom: 20px;
+  background: radial-gradient(circle at 15% 50%, rgba(var(--accent-rgb), 0.08) 0%, var(--panel) 100%);
 }
 
-.hud-ring-wrapper {
+/* 1. COMPACT BATTERY */
+.hud-compact-battery {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.hud-ring-wrapper.compact-ring {
+  width: 140px;
+  height: 140px;
+  flex: none;
+  margin: 0;
+}
+
+.hud-ring-wrapper.compact-ring .hud-ring-center b {
+  font-size: 38px;
+  letter-spacing: -1.5px;
+  margin: 0;
+}
+
+.hud-ring-wrapper.compact-ring .hud-ring-center small {
+  font-size: 9.5px;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+}
+
+.hud-battery-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.hud-mini-stat {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hud-mini-stat span {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+}
+
+.hud-mini-stat b {
+  font-family: var(--display);
+  font-size: 16px;
+  color: var(--text);
+}
+
+.hud-mini-stat b small {
+  font-size: 10px;
+  color: var(--accent);
+  font-family: var(--sans);
+  margin-left: 2px;
+}
+
+/* 2. CHASSIS HUD VIEWPORT */
+.chassis-hud-viewport {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   position: relative;
-  width: 220px;
-  height: 220px;
-  margin: 0 auto;
+  padding: 6px 0;
 }
 
-.hud-ring-svg {
-  transform: rotate(-90deg);
-  width: 100%;
-  height: 100%;
+.chassis-wrapper {
+  position: relative;
+  width: 280px;
+  height: 240px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.hud-ring-bg {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.06);
-  stroke-width: 14;
+.car-chassis-svg {
+  width: 135px;
+  height: 230px;
+  filter: drop-shadow(0 0 16px rgba(var(--accent-rgb), 0.25));
 }
 
-.hud-ring-progress {
-  fill: none;
+/* VECTOR CHASSIS ELEMENTS (REACTIVE TO THEME) */
+.svg-car-body {
+  fill: rgba(13, 26, 22, 0.8);
   stroke: var(--accent);
-  stroke-width: 14;
-  stroke-linecap: round;
-  stroke-dasharray: 440;
-  stroke-dashoffset: 88;
-  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.5));
+  stroke-width: 2.2;
+  transition: stroke 0.4s ease;
 }
 
-.hud-ring-center {
+.svg-wheel {
+  fill: #141b18;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1.5;
+}
+
+.svg-axle {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+
+.svg-battery-pack {
+  fill: rgba(var(--accent-rgb), 0.08);
+  stroke: rgba(var(--accent-rgb), 0.4);
+  stroke-width: 1.5;
+}
+
+.svg-battery-core {
+  stroke: rgba(var(--accent-rgb), 0.3);
+  stroke-width: 1.2;
+}
+
+.svg-cabin-glass {
+  fill: rgba(255, 255, 255, 0.04);
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 1.2;
+}
+
+.svg-light-beam.front {
+  stroke: #ffffff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 -3px 6px #ffffff);
+}
+
+.svg-light-beam.rear {
+  stroke: #ff5252;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 3px 6px #ff5252);
+}
+
+/* TIRE INDICATOR WIDGETS */
+.tire-indicator {
   position: absolute;
-  inset: 0;
+  background: rgba(8, 16, 13, 0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  min-width: 68px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 3;
 }
 
-.hud-ring-center small {
+.tire-indicator small {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 8px;
   color: var(--text-muted);
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
-.hud-ring-center b {
-  font-family: var(--display);
-  font-size: 52px;
-  line-height: 1;
-  letter-spacing: -2px;
+.tire-indicator b {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--accent);
+}
+
+.tire-indicator b .unit {
+  font-size: 8.5px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.tire-top-left { top: 22px; left: 0; }
+.tire-top-right { top: 22px; right: 0; }
+.tire-bottom-left { bottom: 22px; left: 0; }
+.tire-bottom-right { bottom: 22px; right: 0; }
   color: var(--text);
   margin: 4px 0;
 }

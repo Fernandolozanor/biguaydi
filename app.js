@@ -247,11 +247,16 @@ function renderVehicleHUD() {
   setEl('tel-temp-ext', `${v.tempExt}°C`);
   setEl('tel-temp-cabin', `${v.tempCabin}°C`);
 
-  // Tire pressures
+  // Tire pressures (Telemetry page and Dashboard Chassis HUD)
   setEl('tire-fl', `${v.tires.fl} bar`);
   setEl('tire-fr', `${v.tires.fr} bar`);
   setEl('tire-rl', `${v.tires.rl} bar`);
   setEl('tire-rr', `${v.tires.rr} bar`);
+
+  setEl('hud-tire-fl', `${v.tires.fl} bar`);
+  setEl('hud-tire-fr', `${v.tires.fr} bar`);
+  setEl('hud-tire-rl', `${v.tires.rl} bar`);
+  setEl('hud-tire-rr', `${v.tires.rr} bar`);
 }
 
 // --- TRIPS RENDER ---
