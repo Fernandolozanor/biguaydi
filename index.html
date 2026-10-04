@@ -121,18 +121,18 @@
           <div class="grid-cols-3">
             <div class="tech-panel">
               <span class="overline">AHORRO MES EN CURSO</span>
-              <h3 style="font-family:var(--display); font-size:32px; color:var(--accent); margin:8px 0;" id="calc-monthly-savings">88.4 €</h3>
-              <p style="font-size:12px; color:var(--text-muted);">Equivale a <b>3 repostajes</b> térmicos evitados.</p>
+              <div class="card-data-value" style="color:var(--accent); margin:8px 0;" id="calc-monthly-savings">88.4 €</div>
+              <p class="card-data-sub">Equivale a <b>3 repostajes</b> térmicos evitados.</p>
             </div>
             <div class="tech-panel">
               <span class="overline">COSTO POR 100 KM</span>
-              <h3 style="font-family:var(--display); font-size:32px; color:var(--text); margin:8px 0;" id="calc-ev-cost-100">2.07 €</h3>
-              <p style="font-size:12px; color:var(--text-muted);">Frente a <b id="calc-ice-cost-100">10.04 €</b> en gasolina 95.</p>
+              <div class="card-data-value" style="margin:8px 0;" id="calc-ev-cost-100">2.07 €</div>
+              <p class="card-data-sub">Frente a <b id="calc-ice-cost-100">10.04 €</b> en combustible.</p>
             </div>
             <div class="tech-panel">
               <span class="overline">HUELLA EVITADA</span>
-              <h3 style="font-family:var(--display); font-size:32px; color:var(--accent-secondary); margin:8px 0;" id="calc-co2-kg">128 kg</h3>
-              <p style="font-size:12px; color:var(--text-muted);" id="calc-trees">Equivalente a 7 árboles/año.</p>
+              <div class="card-data-value" style="color:var(--accent-secondary); margin:8px 0;" id="calc-co2-kg">128 kg</div>
+              <p class="card-data-sub" id="calc-trees">Equivalente a 7 árboles/año.</p>
             </div>
           </div>
         </section>
@@ -184,18 +184,42 @@
                 </div>
               </div>
 
-              <div class="calc-control-group">
-                <label>Precio Gasolina 95 (€/Litro de referencia):</label>
-                <div class="calc-input-wrapper">
-                  <input type="number" step="0.01" id="cfg-gas-price" value="1.62">
-                  <span>€/Litro</span>
+              <div style="margin-top:14px; margin-bottom:10px;">
+                <span class="overline">COMBUSTIBLE DE COMPARATIVA</span>
+                <div class="energy-chip-group" style="margin-top:8px;">
+                  <div class="fuel-chip energy-chip selected" data-fuel="gas95">⛽ Gasolina 95</div>
+                  <div class="fuel-chip energy-chip" data-fuel="diesel">🛢️ Diésel A</div>
                 </div>
               </div>
 
               <div class="calc-control-group">
-                <label>Consumo coche gasolina equivalente (L/100km):</label>
+                <label>Precio Gasolina 95 (€/Litro):</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" step="0.01" id="cfg-gas-price" value="1.62">
+                  <span>€/L</span>
+                </div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>Consumo Gasolina equivalente (L/100km):</label>
                 <div class="calc-input-wrapper">
                   <input type="number" step="0.1" id="cfg-ice-cons" value="6.2">
+                  <span>L/100km</span>
+                </div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>Precio Diésel A (€/Litro):</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" step="0.01" id="cfg-diesel-price" value="1.54">
+                  <span>€/L</span>
+                </div>
+              </div>
+
+              <div class="calc-control-group">
+                <label>Consumo Diésel equivalente (L/100km):</label>
+                <div class="calc-input-wrapper">
+                  <input type="number" step="0.1" id="cfg-diesel-cons" value="5.2">
                   <span>L/100km</span>
                 </div>
               </div>
@@ -203,33 +227,59 @@
 
             <!-- VISUAL COMPARISON GRAPH -->
             <div class="tech-panel">
-              <span class="overline">COMPARATIVA VISUAL (COSTO CADA 100 KM)</span>
+              <span class="overline">COMPARATIVA VISUAL (COSTO REAL CADA 100 KM)</span>
               
-              <div class="comparison-chart-box">
+              <!-- HIGH TECH 3-PILLAR CHART -->
+              <div class="comparison-chart-box modern-ev-chart">
+                <!-- GRID BACKGROUND LINES -->
+                <div class="chart-grid-line" style="bottom: 25%;"><span>€ 3.00</span></div>
+                <div class="chart-grid-line" style="bottom: 50%;"><span>€ 6.00</span></div>
+                <div class="chart-grid-line" style="bottom: 75%;"><span>€ 9.00</span></div>
+
+                <!-- 1. DOLPHIN SURF ELECTRIC -->
                 <div class="chart-bar-pillar">
                   <span class="chart-bar-value" id="calc-bar-val-ev">2.07€</span>
-                  <div class="chart-bar electric" id="calc-bar-ev" style="height:25%;"></div>
+                  <div class="chart-bar electric" id="calc-bar-ev" style="height:25%;">
+                    <div class="bar-glow-head"></div>
+                  </div>
                   <span class="chart-bar-label">Dolphin Surf</span>
+                  <small class="chart-bar-sub">Eléctrico</small>
                 </div>
+
+                <!-- 2. GASOLINA 95 -->
                 <div class="chart-bar-pillar">
-                  <span class="chart-bar-value" id="calc-bar-val-ice">10.04€</span>
-                  <div class="chart-bar petrol" id="calc-bar-ice" style="height:100%;"></div>
+                  <span class="chart-bar-value" id="calc-bar-val-gas">10.04€</span>
+                  <div class="chart-bar petrol" id="calc-bar-gas" style="height:88%;">
+                    <div class="bar-glow-head"></div>
+                  </div>
                   <span class="chart-bar-label">Gasolina 95</span>
+                  <small class="chart-bar-sub">Térmico</small>
+                </div>
+
+                <!-- 3. DIESEL A -->
+                <div class="chart-bar-pillar">
+                  <span class="chart-bar-value" id="calc-bar-val-diesel">8.01€</span>
+                  <div class="chart-bar diesel" id="calc-bar-diesel" style="height:72%;">
+                    <div class="bar-glow-head"></div>
+                  </div>
+                  <span class="chart-bar-label">Diésel A</span>
+                  <small class="chart-bar-sub">Gasóleo</small>
                 </div>
               </div>
 
               <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
                 <div>
                   <small style="color:var(--text-muted); font-size:11px; display:block;">AHORRO POR CADA 100 KM</small>
-                  <b style="font-family:var(--display); font-size:24px; color:var(--accent);" id="calc-savings-100">7.97 €</b>
+                  <b style="font-family:var(--display); font-size:26px; color:var(--accent);" id="calc-savings-100">7.97 €</b>
                 </div>
                 <div>
-                  <span class="badge-saving" style="font-size:16px; padding:6px 12px;" id="calc-savings-pct">-79%</span>
+                  <span class="badge-saving" style="font-size:16px; padding:6px 14px;" id="calc-savings-pct">-79%</span>
                 </div>
               </div>
 
-              <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--panel-border); font-size:12px; color:var(--text-muted);">
-                Tarifa efectiva aplicada: <b id="calc-effective-rate" style="color:var(--accent);">0.000 €/kWh</b>
+              <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--panel-border); font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between;">
+                <span>Tarifa aplicada: <b id="calc-effective-rate" style="color:var(--accent);">0.000 €/kWh</b></span>
+                <span>Gasolina: <b id="calc-gas-cost-100" style="color:#ff8c73;">10.04 €</b> | Diésel: <b id="calc-diesel-cost-100" style="color:#e5c07b;">8.01 €</b></span>
               </div>
             </div>
           </div>

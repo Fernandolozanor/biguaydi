@@ -110,6 +110,31 @@ body[data-size="3"] { font-size: 15px; }
 body[data-size="4"] { font-size: 16.5px; }
 body[data-size="5"] { font-size: 18px; }
 
+/* UNIFIED TYPOGRAPHY STANDARDS */
+.card-data-value {
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.card-data-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.overline {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+}
+
 /* APP LAYOUT */
 .app-container {
   display: flex;
@@ -633,23 +658,43 @@ body[data-size="5"] { font-size: 18px; }
 .comparison-chart-box {
   display: flex;
   align-items: flex-end;
-  justify-content: center;
-  gap: 60px;
-  height: 220px;
-  padding: 20px 0 10px;
+  justify-content: space-around;
+  gap: 20px;
+  height: 240px;
+  padding: 30px 10px 10px;
   position: relative;
   border-bottom: 1px solid var(--panel-border);
   margin-bottom: 20px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(13, 30, 24, 0.4) 0%, transparent 70%);
+}
+
+.chart-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.chart-grid-line span {
+  position: absolute;
+  left: 6px;
+  top: -10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
 }
 
 .chart-bar-pillar {
-  width: 72px;
+  width: 76px;
   height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
   position: relative;
+  z-index: 2;
 }
 
 .chart-bar {
@@ -657,33 +702,57 @@ body[data-size="5"] { font-size: 18px; }
   border-radius: 8px 8px 0 0;
   position: relative;
   transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  min-height: 20px;
+  min-height: 24px;
+}
+
+.bar-glow-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #ffffff;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 0 12px #ffffff;
 }
 
 .chart-bar.electric {
-  background: linear-gradient(180deg, var(--accent), #367c2b);
-  box-shadow: 0 0 25px rgba(var(--accent-rgb), 0.3);
+  background: linear-gradient(180deg, var(--accent), #1c521e);
+  box-shadow: 0 0 30px rgba(var(--accent-rgb), 0.35);
 }
 
 .chart-bar.petrol {
-  background: linear-gradient(180deg, #ff8c73, #a13d28);
-  box-shadow: 0 0 20px rgba(255, 140, 115, 0.2);
+  background: linear-gradient(180deg, #ff8c73, #7a2818);
+  box-shadow: 0 0 25px rgba(255, 140, 115, 0.25);
+}
+
+.chart-bar.diesel {
+  background: linear-gradient(180deg, #e5c07b, #6b4d1b);
+  box-shadow: 0 0 25px rgba(229, 192, 123, 0.25);
 }
 
 .chart-bar-value {
   position: absolute;
-  top: -26px;
+  top: -28px;
   font-family: var(--mono);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
+  letter-spacing: -0.3px;
 }
 
 .chart-bar-label {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.chart-bar-sub {
+  font-size: 10px;
   color: var(--text-muted);
+  font-family: var(--mono);
 }
 
 /* TRIP CARDS */

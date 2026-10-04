@@ -12,7 +12,10 @@ const STATE = {
     kwhSolar: Number(localStorage.getItem('biguaydi-kwh-solar')) || 0.00,
     solarPct: Number(localStorage.getItem('biguaydi-solar-pct')) || 80, // % of solar in mixed mode
     gas95: Number(localStorage.getItem('biguaydi-gas95')) || 1.62,
-    iceConsumption: Number(localStorage.getItem('biguaydi-ice-cons')) || 6.2 // l/100km for equivalent ICE
+    diesel: Number(localStorage.getItem('biguaydi-diesel')) || 1.54,
+    iceConsumption: Number(localStorage.getItem('biguaydi-ice-cons')) || 6.2, // l/100km Gasoline
+    dieselConsumption: Number(localStorage.getItem('biguaydi-diesel-cons')) || 5.2, // l/100km Diesel
+    fuelType: localStorage.getItem('biguaydi-fuel-type') || 'gas95' // gas95 or diesel
   },
   // Default real or sample metrics for Dolphin Surf
   vehicle: {
@@ -137,58 +140,71 @@ function updateCalculations() {
   
   // Cost per 100km Electric
   const costEv100 = (evKwh100km * costPerKwh);
-  // Cost per 100km Gas 95 (ICE)
-  const costIce100 = (STATE.prices.iceConsumption * STATE.prices.gas95);
-  // Savings per 100km
-  const savings100 = Math.max(0, costIce100 - costEv100);
-  const savingsPct = costIce100 > 0 ? ((savings100 / costIce100) * 100) : 0;
+
+  // Cost per 100km Gasoline 95 & Diesel
+  const costGas100 = (STATE.prices.iceConsumption * STATE.prices.gas95);
+  const costDiesel100 = (STATE.prices.dieselConsumption * STATE.prices.diesel);
+
+  // Active comparison based on selected fuelType
+  const costSelectedIce100 = STATE.prices.fuelType === 'diesel' ? costDiesel100 : costGas100;
+  const savings100 = Math.max(0, costSelectedIce100 - costEv100);
+  const savingsPct = costSelectedIce100 > 0 ? ((savings100 / costSelectedIce100) * 100) : 0;
 
   // Monthly estimate based on 1.200 km / month average
   const kmMonth = 1200;
   const monthlyEvCost = (kmMonth / 100) * costEv100;
-  const monthlyIceCost = (kmMonth / 100) * costIce100;
+  const monthlyIceCost = (kmMonth / 100) * costSelectedIce100;
   const monthlySavings = monthlyIceCost - monthlyEvCost;
 
-  // CO2 Emitted ICE (approx 145g/km) vs EV (Spain Mix ~ 40g/km or 0g with Solar)
+  // CO2 Emitted ICE vs EV
   const evCo2PerKm = STATE.energySource === 'solar' ? 0 : 38; // g/km
-  const iceCo2PerKm = 145; // g/km
+  const iceCo2PerKm = STATE.prices.fuelType === 'diesel' ? 140 : 145; // g/km
   const co2AvoidedKgMonthly = ((iceCo2PerKm - evCo2PerKm) * kmMonth) / 1000;
-  const treesEquivalent = Math.max(1, Math.round(co2AvoidedKgMonthly * 12 / 21)); // 1 tree ~ 21kg CO2/year
+  const treesEquivalent = Math.max(1, Math.round(co2AvoidedKgMonthly * 12 / 21));
 
   // DOM Updates
   const elCostEv = document.getElementById('calc-ev-cost-100');
   const elCostIce = document.getElementById('calc-ice-cost-100');
+  const elCostGas = document.getElementById('calc-gas-cost-100');
+  const elCostDiesel = document.getElementById('calc-diesel-cost-100');
   const elSavings100 = document.getElementById('calc-savings-100');
   const elSavingsPct = document.getElementById('calc-savings-pct');
   const elMonthlySavings = document.getElementById('calc-monthly-savings');
-  const elMonthlyEv = document.getElementById('calc-monthly-ev');
-  const elMonthlyIce = document.getElementById('calc-monthly-ice');
   const elCo2Kg = document.getElementById('calc-co2-kg');
   const elTrees = document.getElementById('calc-trees');
   const elEffectiveRate = document.getElementById('calc-effective-rate');
 
   if (elCostEv) elCostEv.textContent = `${costEv100.toFixed(2)} €`;
-  if (elCostIce) elCostIce.textContent = `${costIce100.toFixed(2)} €`;
+  if (elCostIce) elCostIce.textContent = `${costSelectedIce100.toFixed(2)} €`;
+  if (elCostGas) elCostGas.textContent = `${costGas100.toFixed(2)} €`;
+  if (elCostDiesel) elCostDiesel.textContent = `${costDiesel100.toFixed(2)} €`;
   if (elSavings100) elSavings100.textContent = `${savings100.toFixed(2)} €`;
   if (elSavingsPct) elSavingsPct.textContent = `-${savingsPct.toFixed(0)}%`;
   if (elMonthlySavings) elMonthlySavings.textContent = `${monthlySavings.toFixed(1)} €`;
-  if (elMonthlyEv) elMonthlyEv.textContent = `${monthlyEvCost.toFixed(1)} €`;
-  if (elMonthlyIce) elMonthlyIce.textContent = `${monthlyIceCost.toFixed(1)} €`;
   if (elCo2Kg) elCo2Kg.textContent = `${co2AvoidedKgMonthly.toFixed(0)} kg`;
   if (elTrees) elTrees.textContent = `${treesEquivalent} árboles/año`;
   if (elEffectiveRate) elEffectiveRate.textContent = `${costPerKwh.toFixed(3)} €/kWh`;
 
-  // Update dynamic comparison bar
+  // Update dynamic modern 3-bar comparison chart
   const barEv = document.getElementById('calc-bar-ev');
-  const barIce = document.getElementById('calc-bar-ice');
-  if (barEv && barIce) {
-    const maxCost = Math.max(costIce100, costEv100, 1);
-    barEv.style.height = `${Math.min(100, Math.max(12, (costEv100 / maxCost) * 100))}%`;
-    barIce.style.height = `${Math.min(100, Math.max(12, (costIce100 / maxCost) * 100))}%`;
+  const barGas = document.getElementById('calc-bar-gas');
+  const barDiesel = document.getElementById('calc-bar-diesel');
+  const maxCost = Math.max(costGas100, costDiesel100, costEv100, 1);
+
+  if (barEv) {
+    barEv.style.height = `${Math.min(100, Math.max(14, (costEv100 / maxCost) * 100))}%`;
     const valEv = document.getElementById('calc-bar-val-ev');
-    const valIce = document.getElementById('calc-bar-val-ice');
     if (valEv) valEv.textContent = `${costEv100.toFixed(2)}€`;
-    if (valIce) valIce.textContent = `${costIce100.toFixed(2)}€`;
+  }
+  if (barGas) {
+    barGas.style.height = `${Math.min(100, Math.max(14, (costGas100 / maxCost) * 100))}%`;
+    const valGas = document.getElementById('calc-bar-val-gas');
+    if (valGas) valGas.textContent = `${costGas100.toFixed(2)}€`;
+  }
+  if (barDiesel) {
+    barDiesel.style.height = `${Math.min(100, Math.max(14, (costDiesel100 / maxCost) * 100))}%`;
+    const valDiesel = document.getElementById('calc-bar-val-diesel');
+    if (valDiesel) valDiesel.textContent = `${costDiesel100.toFixed(2)}€`;
   }
 }
 
@@ -475,7 +491,22 @@ export function initApp() {
   bindInput('cfg-kwh-solar', 'prices', 'kwhSolar');
   bindInput('cfg-solar-pct', 'prices', 'solarPct');
   bindInput('cfg-gas-price', 'prices', 'gas95');
+  bindInput('cfg-diesel-price', 'prices', 'diesel');
   bindInput('cfg-ice-cons', 'prices', 'iceConsumption');
+  bindInput('cfg-diesel-cons', 'prices', 'dieselConsumption');
+
+  // Fuel selector chips (Gasolina vs Diésel)
+  document.querySelectorAll('.fuel-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.fuel-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      STATE.prices.fuelType = chip.dataset.fuel;
+      localStorage.setItem('biguaydi-fuel-type', STATE.prices.fuelType);
+      updateCalculations();
+      renderTrips();
+      showToast(`Comparando con: ${chip.textContent.trim()}`);
+    });
+  });
 
   // Daily market prices fetcher (REE & MITECO)
   const fetchMarketBtn = document.getElementById('btn-fetch-market-prices');
@@ -501,6 +532,24 @@ export function initApp() {
           const inpGas = document.getElementById('cfg-gas-price');
           if (inpGas) inpGas.value = data.gas95;
         }
+        if (data.diesel) {
+          STATE.prices.diesel = Number(data.diesel);
+          localStorage.setItem('biguaydi-diesel', data.diesel);
+          const inpDie = document.getElementById('cfg-diesel-price');
+          if (inpDie) inpDie.value = data.diesel;
+        }
+
+        updateCalculations();
+        renderTrips();
+        showToast(`✓ Medias hoy: Luz ${data.kwhGrid}€/kWh · Gasolina ${data.gas95}€/L · Diésel ${data.diesel}€/L`);
+      } catch (err) {
+        showToast(`No se pudieron obtener precios: ${err.message}`);
+      } finally {
+        fetchMarketBtn.disabled = false;
+        fetchMarketBtn.textContent = '📡 Obtener medias hoy (REE / MITECO)';
+      }
+    });
+  }
 
         updateCalculations();
         renderTrips();

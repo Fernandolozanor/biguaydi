@@ -107,26 +107,41 @@ async def get_daily_prices():
         except Exception:
             pass
 
-        # 2. Fetch live average Gasoline 95 from MITECO (Ministerio para la Transición Ecológica)
+        # 2. Fetch live average Gasoline 95 & Diesel A from MITECO (Ministerio para la Transición Ecológica)
         try:
             miteco_url = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/"
             r_gas = await client.get(miteco_url)
             if r_gas.status_code == 200:
                 gas_json = r_gas.json()
-                prices = []
+                prices_gas = []
+                prices_diesel = []
                 for st in gas_json.get("ListaEESSPrecio", []):
-                    p_str = st.get("Precio Gasolina 95 E5", "").replace(",", ".")
+                    # Gasoline 95
+                    p_gas_str = st.get("Precio Gasolina 95 E5", "").replace(",", ".")
                     try:
-                        p_float = float(p_str)
-                        if 1.0 < p_float < 3.0: # Filter sensible prices
-                            prices.append(p_float)
+                        p_gas = float(p_gas_str)
+                        if 1.0 < p_gas < 3.0:
+                            prices_gas.append(p_gas)
                     except ValueError:
-                        continue
-                if prices:
-                    res["gas95"] = round(sum(prices) / len(prices), 3)
-                    res["source_fuel"] = "MITECO (Ministerio para la Transición Ecológica)"
+                        pass
+                    # Diesel A
+                    p_die_str = st.get("Precio Gasoleo A", "").replace(",", ".")
+                    try:
+                        p_die = float(p_die_str)
+                        if 1.0 < p_die < 3.0:
+                            prices_diesel.append(p_die)
+                    except ValueError:
+                        pass
+
+                if prices_gas:
+                    res["gas95"] = round(sum(prices_gas) / len(prices_gas), 3)
+                if prices_diesel:
+                    res["diesel"] = round(sum(prices_diesel) / len(prices_diesel), 3)
+                else:
+                    res["diesel"] = 1.54
+                res["source_fuel"] = "MITECO (Ministerio para la Transición Ecológica)"
         except Exception:
-            pass
+            res["diesel"] = 1.54
 
     return res
 
