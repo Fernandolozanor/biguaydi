@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v19-high-contrast-kpi-and-elastic-curiosity';
+const CACHE = 'biguaydi-v20-persist-charging-energy-source';
 const ASSETS = [
   './',
   './index.html',

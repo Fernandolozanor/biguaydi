@@ -1545,8 +1545,10 @@ export function initApp() {
     slider.addEventListener('input', (e) => setFontSize(e.target.value));
   }
 
-  // Energy source choices
+  // Energy source choices & UI synchronization with saved STATE
+  const currentSource = STATE.energySource || 'solar';
   document.querySelectorAll('.energy-chip').forEach(chip => {
+    chip.classList.toggle('selected', chip.dataset.energy === currentSource);
     chip.addEventListener('click', () => {
       document.querySelectorAll('.energy-chip').forEach(c => c.classList.remove('selected'));
       chip.classList.add('selected');
