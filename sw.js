@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v23-coherent-palette-for-cost-savings-bar';
+const CACHE = 'biguaydi-v24-conditional-ev-cost-bar-in-trips-chart';
 const ASSETS = [
   './',
   './index.html',

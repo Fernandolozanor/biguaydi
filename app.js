@@ -786,6 +786,7 @@ function renderTripsChart() {
     return;
   }
 
+  const costPerKwh = getEffectiveElectricityPrice();
   const gasPrice = STATE.prices.gas95;
   const dieselPrice = STATE.prices.diesel;
   const iceCons = STATE.prices.iceConsumption;
@@ -794,22 +795,25 @@ function renderTripsChart() {
   const data = trips.map(t => {
     const costGas = (t.distance / 100) * iceCons * gasPrice;
     const costDiesel = (t.distance / 100) * dieselCons * dieselPrice;
+    const costEv = t.energy * costPerKwh;
     return {
       title: t.title.split(' ')[0] || `V${t.id}`,
       dist: t.distance.toFixed(1) + 'km',
       wh: t.avgWh,
       costGas,
-      costDiesel
+      costDiesel,
+      costEv
     };
   });
 
-  const maxCost = Math.max(...data.map(d => Math.max(d.costGas, d.costDiesel)), 1.5);
+  const hasEvCost = costPerKwh > 0;
+  const maxCost = Math.max(...data.map(d => Math.max(d.costGas, d.costDiesel, d.costEv)), 1.5);
   const minWh = Math.min(...data.map(d => d.wh), 100);
   const maxWh = Math.max(...data.map(d => d.wh), 200);
 
   // Responsive dimensions: Mobile fits comfortably and scrolls smoothly if needed; Desktop is wide
   const isMobile = window.innerWidth <= 768;
-  const W = isMobile ? Math.max(340, data.length * 82) : Math.max(900, data.length * 125);
+  const W = isMobile ? Math.max(340, data.length * (hasEvCost ? 92 : 82)) : Math.max(900, data.length * (hasEvCost ? 135 : 125));
   const H = isMobile ? 220 : 250;
   const padL = isMobile ? 44 : 52;
   const padR = isMobile ? 20 : 30;
@@ -819,38 +823,66 @@ function renderTripsChart() {
   const plotH = H - padT - padB;
 
   const slotW = plotW / data.length;
-  const barW = Math.min(isMobile ? 20 : 26, Math.max(12, slotW * 0.22));
-  const barGap = isMobile ? 4 : 6;
+  const barCount = hasEvCost ? 3 : 2;
+  const barW = Math.min(isMobile ? (hasEvCost ? 15 : 20) : (hasEvCost ? 20 : 26), Math.max(10, slotW * (hasEvCost ? 0.17 : 0.22)));
+  const barGap = isMobile ? 3 : 5;
+  const totalGroupW = (barCount * barW) + ((barCount - 1) * barGap);
   const fontScale = 0.85 + (STATE.fontSize - 1) * 0.12;
   const linePoints = [];
 
   let barsSvg = '';
   data.forEach((d, i) => {
     const cx = padL + i * slotW + slotW / 2;
-    const xGas = cx - barW - (barGap / 2);
-    const xDiesel = cx + (barGap / 2);
+    const startX = cx - (totalGroupW / 2);
+
+    let xEv = 0;
+    let xGas = 0;
+    let xDiesel = 0;
+
+    if (hasEvCost) {
+      xEv = startX;
+      xGas = startX + barW + barGap;
+      xDiesel = startX + (2 * (barW + barGap));
+    } else {
+      xGas = startX;
+      xDiesel = startX + barW + barGap;
+    }
 
     const hGas = Math.max(10, (d.costGas / maxCost) * plotH);
     const hDiesel = Math.max(10, (d.costDiesel / maxCost) * plotH);
+    const hEv = hasEvCost ? Math.max(6, (d.costEv / maxCost) * plotH) : 0;
 
     const yGas = padT + (plotH - hGas);
     const yDiesel = padT + (plotH - hDiesel);
+    const yEv = padT + (plotH - hEv);
 
     const whNorm = (d.wh - minWh) / Math.max(1, maxWh - minWh);
     const yWh = padT + (plotH - (whNorm * (plotH * 0.6) + (plotH * 0.2)));
     linePoints.push({ x: cx, y: yWh, val: d.wh });
 
+    let evBarSvg = '';
+    if (hasEvCost) {
+      evBarSvg = `
+        <!-- Coste Eléctrico EV Bar (Verde) -->
+        <rect x="${xEv}" y="${yEv}" width="${barW}" height="${hEv}" rx="3.5" fill="url(#tripEvGrad)" />
+        <rect x="${xEv}" y="${yEv}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowGreen)" />
+        <text x="${xEv + barW / 2}" y="${yEv - 5}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="700" fill="var(--accent)" text-anchor="middle" font-family="var(--mono)">${d.costEv.toFixed(2)}€</text>
+      `;
+    }
+
     barsSvg += `
       <g class="chart-trip-group">
+        ${evBarSvg}
+
         <!-- Gasolina 95 Bar -->
-        <rect x="${xGas}" y="${yGas}" width="${barW}" height="${hGas}" rx="4" fill="url(#tripGasGrad)" />
-        <rect x="${xGas}" y="${yGas}" width="${barW}" height="2.5" rx="1" fill="#fff" filter="url(#glowGas)" />
-        <text x="${xGas + barW / 2}" y="${yGas - 6}" font-size="${(10.5 * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
+        <rect x="${xGas}" y="${yGas}" width="${barW}" height="${hGas}" rx="3.5" fill="url(#tripGasGrad)" />
+        <rect x="${xGas}" y="${yGas}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowGas)" />
+        <text x="${xGas + barW / 2}" y="${yGas - 5}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
 
         <!-- Diésel A Bar -->
-        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="${hDiesel}" rx="4" fill="url(#tripDieGrad)" />
-        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="2.5" rx="1" fill="#fff" filter="url(#glowDie)" />
-        <text x="${xDiesel + barW / 2}" y="${yDiesel - 6}" font-size="${(10.5 * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
+        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="${hDiesel}" rx="3.5" fill="url(#tripDieGrad)" />
+        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowDie)" />
+        <text x="${xDiesel + barW / 2}" y="${yDiesel - 5}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
 
         <!-- Labels -->
         <text x="${cx}" y="${H - 22}" font-size="${(12 * fontScale).toFixed(1)}" class="chart-text-title" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
@@ -877,9 +909,19 @@ function renderTripsChart() {
     <text x="${p.x}" y="${p.y - 8}" font-size="${(9.5 * fontScale).toFixed(1)}" class="chart-text-val" fill="#4ce0d2" text-anchor="middle" font-weight="700" font-family="var(--mono)">${p.val}</text>
   `).join('');
 
+  // Update dynamic chart legend to show or hide the green EV cost indicator
+  const legendEvItem = document.getElementById('trips-legend-ev-cost');
+  if (legendEvItem) {
+    legendEvItem.style.display = hasEvCost ? 'inline-flex' : 'none';
+  }
+
   chartBox.innerHTML = `
     <svg class="trips-svg-canvas" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
       <defs>
+        <linearGradient id="tripEvGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="var(--accent)" />
+          <stop offset="100%" stop-color="#1b4d2e" />
+        </linearGradient>
         <linearGradient id="tripGasGrad" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#ff8c73" />
           <stop offset="100%" stop-color="#4d170c" />
@@ -888,6 +930,10 @@ function renderTripsChart() {
           <stop offset="0%" stop-color="#f5cc7f" />
           <stop offset="100%" stop-color="#47310a" />
         </linearGradient>
+        <filter id="glowGreen" x="-20%" y="-50%" width="140%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
         <filter id="glowGas" x="-20%" y="-50%" width="140%" height="200%">
           <feGaussianBlur stdDeviation="2" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
