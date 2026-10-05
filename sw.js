@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v22-real-range-gauge-on-efficiency-card';
+const CACHE = 'biguaydi-v23-coherent-palette-for-cost-savings-bar';
 const ASSETS = [
   './',
   './index.html',
