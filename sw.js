@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v24-conditional-ev-cost-bar-in-trips-chart';
+const CACHE = 'biguaydi-v25-real-range-vs-homologated-wltp';
 const ASSETS = [
   './',
   './index.html',

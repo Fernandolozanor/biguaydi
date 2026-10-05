@@ -499,6 +499,7 @@ function renderTrips() {
   const elEff = document.getElementById('kpi-trip-efficiency');
   const elWh = document.getElementById('kpi-trip-wh');
   const elRealRange = document.getElementById('kpi-trip-real-range');
+  const elRangeComp = document.getElementById('kpi-trip-range-comp');
   const elBatteryFill = document.getElementById('kpi-trip-battery-fill');
   const elCo2 = document.getElementById('kpi-trip-co2');
   const elCo2Fact = document.getElementById('kpi-trip-co2-fact');
@@ -514,6 +515,12 @@ function renderTrips() {
   if (elEff) elEff.textContent = `${avgKwh100km.toFixed(1)} kWh`;
   if (elWh) elWh.textContent = avgWh;
   if (elRealRange) elRealRange.textContent = `${estimatedRealRange100} km`;
+  if (elRangeComp) {
+    const diffKm = estimatedRealRange100 - 310;
+    const diffStr = diffKm >= 0 ? `+${diffKm}` : `${diffKm}`;
+    elRangeComp.textContent = `${diffStr} km vs 310 WLTP`;
+    elRangeComp.title = `Comparativa frente a la autonomía homologada WLTP oficial (310 km)`;
+  }
   if (elBatteryFill) elBatteryFill.style.width = `${rangeFillPct}%`;
   if (elCo2) elCo2.textContent = `${co2AvoidedKg.toFixed(1)} kg`;
   if (elCo2Fact) elCo2Fact.textContent = getRandomCo2Fact(co2AvoidedKg);
