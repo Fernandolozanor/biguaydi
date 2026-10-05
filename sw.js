@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v29-trip-period-custom-calendar-range';
+const CACHE = 'biguaydi-v30-real-monthly-savings-no-fictitious';
 const ASSETS = [
   './',
   './index.html',

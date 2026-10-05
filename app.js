@@ -52,13 +52,13 @@ const STATE = {
   trips: (function() {
     try {
       const saved = localStorage.getItem('biguaydi-trips');
-      const list = saved ? JSON.parse(saved) : [
-        { id: 1, title: 'Trabajo ➔ Casa', category: 'trabajo', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
-        { id: 2, title: 'Casa ➔ Gimnasio', category: 'personal', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
-        { id: 3, title: 'Ruta Clientes Centro', category: 'chofer', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
-        { id: 4, title: 'Compras & Supermercado', category: 'compras', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
-      ];
-      return list.map(t => ({ category: 'trabajo', ...t }));
+      if (saved) {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) {
+          return list.map(t => ({ category: 'trabajo', ...t }));
+        }
+      }
+      return [];
     } catch (_) {
       return [];
     }
@@ -204,19 +204,30 @@ function updateCalculations() {
   const savingsDiesel100 = Math.max(0, costDiesel100 - costEv100);
   const savingsDieselPct = costDiesel100 > 0 ? ((savingsDiesel100 / costDiesel100) * 100) : 0;
 
-  // Monthly estimate based on 1.200 km / month average
-  const kmMonth = 1200;
-  const monthlyEvCost = (kmMonth / 100) * costEv100;
-  const monthlyGasCost = (kmMonth / 100) * costGas100;
-  const monthlyDieselCost = (kmMonth / 100) * costDiesel100;
-  const monthlySavingsGas = monthlyGasCost - monthlyEvCost;
-  const monthlySavingsDiesel = monthlyDieselCost - monthlyEvCost;
+  // Real trips in current month (NO fictitious data)
+  const monthTrips = (STATE.trips || []).filter(t => isTripInPeriod(t, 'month'));
+  const monthKm = monthTrips.reduce((acc, t) => acc + (Number(t.distance) || 0), 0);
+  const monthKwh = monthTrips.reduce((acc, t) => acc + (Number(t.energy) || 0), 0);
 
-  // CO2 Emitted ICE vs EV
+  let monthlyEvCost = 0;
+  let monthlyGasCost = 0;
+  let monthlyDieselCost = 0;
+  let monthlySavingsGas = 0;
+  let monthlySavingsDiesel = 0;
+
+  if (monthKm > 0) {
+    monthlyEvCost = monthKwh > 0 ? (monthKwh * costPerKwh) : ((monthKm / 100) * costEv100);
+    monthlyGasCost = (monthKm / 100) * costGas100;
+    monthlyDieselCost = (monthKm / 100) * costDiesel100;
+    monthlySavingsGas = Math.max(0, monthlyGasCost - monthlyEvCost);
+    monthlySavingsDiesel = Math.max(0, monthlyDieselCost - monthlyEvCost);
+  }
+
+  // CO2 Emitted ICE vs EV based on real month km
   const evCo2PerKm = STATE.energySource === 'solar' ? 0 : 38; // g/km
   const iceCo2PerKm = 142; // g/km average
-  const co2AvoidedKgMonthly = ((iceCo2PerKm - evCo2PerKm) * kmMonth) / 1000;
-  const treesEquivalent = Math.max(1, Math.round(co2AvoidedKgMonthly * 12 / 21));
+  const co2AvoidedKgMonthly = monthKm > 0 ? (((iceCo2PerKm - evCo2PerKm) * monthKm) / 1000) : 0;
+  const treesEquivalent = monthKm > 0 ? Math.max(1, Math.round(co2AvoidedKgMonthly * 12 / 21)) : 0;
 
   // Dashboard Highlight DOM Updates
   const elCostEv = document.getElementById('calc-ev-cost-100');
@@ -231,11 +242,28 @@ function updateCalculations() {
   if (elCostEv) elCostEv.textContent = `${costEv100.toFixed(2)} €`;
   if (elIceGasCost) elIceGasCost.textContent = `${costGas100.toFixed(2)} €`;
   if (elIceDieselCost) elIceDieselCost.textContent = `${costDiesel100.toFixed(2)} €`;
-  if (elMonthlySavings) elMonthlySavings.textContent = `${monthlySavingsGas.toFixed(1)} €`;
-  if (elSavingsMonthGas) elSavingsMonthGas.textContent = `${monthlySavingsGas.toFixed(1)} €`;
-  if (elSavingsMonthDiesel) elSavingsMonthDiesel.textContent = `${monthlySavingsDiesel.toFixed(1)} €`;
-  if (elCo2Kg) elCo2Kg.textContent = `${co2AvoidedKgMonthly.toFixed(0)} kg`;
-  if (elTrees) elTrees.textContent = `${treesEquivalent} árboles/año`;
+
+  if (elMonthlySavings) {
+    if (monthKm > 0) {
+      elMonthlySavings.textContent = `${monthlySavingsGas.toFixed(2)} €`;
+    } else {
+      elMonthlySavings.textContent = `0.00 €`;
+    }
+  }
+  if (elSavingsMonthGas) {
+    elSavingsMonthGas.textContent = monthKm > 0 ? `${monthlySavingsGas.toFixed(2)} €` : `0.00 €`;
+  }
+  if (elSavingsMonthDiesel) {
+    elSavingsMonthDiesel.textContent = monthKm > 0 ? `${monthlySavingsDiesel.toFixed(2)} €` : `0.00 €`;
+  }
+  if (elCo2Kg) {
+    elCo2Kg.textContent = monthKm > 0 ? `${co2AvoidedKgMonthly.toFixed(1)} kg` : `0 kg`;
+  }
+  if (elTrees) {
+    elTrees.textContent = monthKm > 0 
+      ? `Equivalente a ${treesEquivalent} árbol${treesEquivalent > 1 ? 'es' : ''}/año` 
+      : 'Sin trayectos este mes';
+  }
 
   // Calculator View Dual Comparison DOM Updates
   const elCostGas = document.getElementById('calc-gas-cost-100');
