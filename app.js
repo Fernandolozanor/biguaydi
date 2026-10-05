@@ -438,9 +438,9 @@ function renderTrips() {
           <div class="trip-card-right">
             <div class="trip-cost-badge">
               <div class="trip-ev-cost">${tripCostEv.toFixed(2)} €</div>
-              <div class="trip-ice-comp" style="font-size:11.5px; line-height:1.4;">
-                <div>Gas: <del>${tripCostGas.toFixed(2)}€</del> <b class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)}€</b></div>
-                <div>Diésel: <del>${tripCostDiesel.toFixed(2)}€</del> <b class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)}€</b></div>
+              <div class="trip-ice-comp">
+                <div>Gas: ${tripCostGas.toFixed(2)}€ <b class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)}€</b></div>
+                <div>Diésel: ${tripCostDiesel.toFixed(2)}€ <b class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)}€</b></div>
               </div>
             </div>
             <div class="trip-card-actions">

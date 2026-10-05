@@ -1372,40 +1372,43 @@ body[data-size="5"] {
   100% { background: var(--panel-card); border-color: var(--panel-border); transform: scale(1); }
 }
 
-/* TRIP CARDS */
+/* TRIP CARDS - OPTIMIZED COMPACT VERTICAL FOOTPRINT */
 .trip-card {
   background: var(--panel-card);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-sm);
-  padding: 16px 20px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  margin-bottom: 7px;
+  gap: 12px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .trip-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .trip-card-main {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .trip-route-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: rgba(var(--accent-rgb), 0.1);
   color: var(--accent);
   display: grid;
   place-items: center;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 /* REORDER HANDLE & DRAG STYLES */
@@ -1501,23 +1504,39 @@ body[data-size="5"] {
   font-size: var(--chart-fs-axis, 9.5px) !important;
 }
 
+.trip-details {
+  min-width: 0;
+}
+
+.trip-details .trip-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  line-height: 1.25;
+}
+
 .trip-details .trip-title b {
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .trip-details .trip-time {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--text-muted);
-  margin-left: 8px;
+  margin-left: 0;
+  white-space: nowrap;
 }
 
 .trip-stats-row {
   display: flex;
-  gap: 14px;
-  margin-top: 4px;
-  font-size: 12.5px;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 11.5px;
   color: var(--text-muted);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .trip-stats-row b {
@@ -1527,54 +1546,58 @@ body[data-size="5"] {
 
 .trip-cost-badge {
   text-align: right;
+  line-height: 1.15;
 }
 
 .trip-ev-cost {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--accent);
 }
 
 .trip-ice-comp {
-  font-size: 12px;
+  font-size: 10.5px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
+  line-height: 1.25;
 }
 
 .badge-saving {
   background: rgba(var(--accent-rgb), 0.15);
   color: var(--accent);
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
   font-family: var(--mono);
   font-weight: 600;
+  font-size: 10px;
 }
 
 .trip-card-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .trip-card-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .trip-action-btn {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--panel-border);
   color: var(--text-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 27px;
+  height: 27px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
-  font-size: 13.5px;
+  font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease;
   padding: 0;
   user-select: none;
 }
@@ -1672,14 +1695,61 @@ body[data-size="5"] {
 
 @media (max-width: 600px) {
   .trip-card {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
+    padding: 7px 10px;
+    margin-bottom: 6px;
+    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+  }
+  .trip-card-main {
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .trip-route-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  .trip-details .trip-title b {
+    font-size: 12.5px;
+  }
+  .trip-details .trip-time {
+    font-size: 10px;
+  }
+  .trip-category-tag {
+    font-size: 9.5px;
+    padding: 1px 5px;
+  }
+  .trip-stats-row {
+    font-size: 10.5px;
+    gap: 6px;
+    margin-top: 1px;
   }
   .trip-card-right {
-    justify-content: space-between;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    padding-top: 10px;
+    gap: 6px;
+    border-top: none;
+    padding-top: 0;
+    align-items: center;
+  }
+  .trip-cost-badge {
+    text-align: right;
+  }
+  .trip-ev-cost {
+    font-size: 13.5px;
+  }
+  .trip-ice-comp {
+    font-size: 9.5px;
+    line-height: 1.15;
+  }
+  .trip-card-actions {
+    gap: 2px;
+  }
+  .trip-action-btn {
+    width: 25px;
+    height: 25px;
+    font-size: 11px;
+    border-radius: 5px;
   }
 }
 

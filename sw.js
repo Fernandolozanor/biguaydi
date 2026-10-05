@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v12-reorder-categories';
+const CACHE = 'biguaydi-v13-compact-cards-no-del';
 const ASSETS = [
   './',
   './index.html',
