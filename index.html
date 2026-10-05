@@ -539,6 +539,20 @@
               <button class="trip-period-chip" data-period="today" type="button">⚡ Hoy</button>
               <button class="trip-period-chip" data-period="week" type="button">🗓️ Última semana</button>
               <button class="trip-period-chip" data-period="month" type="button">📊 Este mes</button>
+              <button class="trip-period-chip" data-period="custom" id="trip-period-custom-chip" type="button">📅 Personalizado</button>
+            </div>
+            <!-- CALENDARIO DESDE / HASTA (RANGO PERSONALIZADO) -->
+            <div class="trip-period-calendar-panel" id="trip-period-calendar-panel" style="display:none;">
+              <div class="trip-calendar-group">
+                <label for="trip-date-from">Desde:</label>
+                <input type="date" id="trip-date-from" class="trip-calendar-input" />
+              </div>
+              <div class="trip-calendar-group">
+                <label for="trip-date-to">Hasta:</label>
+                <input type="date" id="trip-date-to" class="trip-calendar-input" />
+              </div>
+              <button type="button" class="btn-calendar-apply" id="btn-calendar-apply">Aplicar</button>
+              <button type="button" class="btn-calendar-clear" id="btn-calendar-clear" title="Restablecer fechas">✕</button>
             </div>
           </div>
 

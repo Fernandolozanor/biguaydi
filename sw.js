@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v28-restore-trip-cards-and-chart-fix';
+const CACHE = 'biguaydi-v29-trip-period-custom-calendar-range';
 const ASSETS = [
   './',
   './index.html',

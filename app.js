@@ -20,6 +20,8 @@ const STATE = {
   },
   selectedTripCategory: 'all',
   selectedTripPeriod: localStorage.getItem('biguaydi-trip-period') || 'all',
+  customDateFrom: localStorage.getItem('biguaydi-trip-date-from') || '',
+  customDateTo: localStorage.getItem('biguaydi-trip-date-to') || '',
   tripSort: localStorage.getItem('biguaydi-trip-sort') || 'recent',
   // Loaded from cache or default values for Dolphin Surf
   vehicle: (function() {
@@ -420,6 +422,12 @@ function isTripInPeriod(trip, period) {
       tripTime = Date.now();
     } else if (dLower.includes('ayer')) {
       tripTime = Date.now() - (24 * 60 * 60 * 1000);
+    } else {
+      // Try parsing formats like "02 Oct" or "2026-10-02"
+      const parsed = Date.parse(trip.date);
+      if (!isNaN(parsed)) {
+        tripTime = parsed;
+      }
     }
   }
 
@@ -431,6 +439,26 @@ function isTripInPeriod(trip, period) {
   if (period === 'today') return tripTime >= todayStart;
   if (period === 'week') return tripTime >= weekStart;
   if (period === 'month') return tripTime >= monthStart;
+
+  if (period === 'custom') {
+    let match = true;
+    if (STATE.customDateFrom) {
+      const fromParts = STATE.customDateFrom.split('-');
+      if (fromParts.length === 3) {
+        const fromStart = new Date(Number(fromParts[0]), Number(fromParts[1]) - 1, Number(fromParts[2]), 0, 0, 0, 0).getTime();
+        if (tripTime < fromStart) match = false;
+      }
+    }
+    if (STATE.customDateTo) {
+      const toParts = STATE.customDateTo.split('-');
+      if (toParts.length === 3) {
+        const toEnd = new Date(Number(toParts[0]), Number(toParts[1]) - 1, Number(toParts[2]), 23, 59, 59, 999).getTime();
+        if (tripTime > toEnd) match = false;
+      }
+    }
+    return match;
+  }
+
   return true;
 }
 
@@ -451,6 +479,16 @@ function renderTrips() {
   periodChips.forEach(pChip => {
     pChip.classList.toggle('active', pChip.dataset.period === activePeriod);
   });
+
+  // Calendar panel visibility and input values sync
+  const calPanel = document.getElementById('trip-period-calendar-panel');
+  const inputFrom = document.getElementById('trip-date-from');
+  const inputTo = document.getElementById('trip-date-to');
+  if (calPanel) {
+    calPanel.style.display = (activePeriod === 'custom') ? 'flex' : 'none';
+  }
+  if (inputFrom && STATE.customDateFrom) inputFrom.value = STATE.customDateFrom;
+  if (inputTo && STATE.customDateTo) inputTo.value = STATE.customDateTo;
 
   // Base trips filtered by time period (for both aggregated KPIs and listing)
   const periodTrips = STATE.trips.filter(t => isTripInPeriod(t, activePeriod));
@@ -599,7 +637,10 @@ function renderTrips() {
       all: 'todos los registros',
       today: 'el día de hoy',
       week: 'la última semana',
-      month: 'este mes'
+      month: 'este mes',
+      custom: (STATE.customDateFrom || STATE.customDateTo)
+        ? `el rango ${STATE.customDateFrom || '...'} a ${STATE.customDateTo || '...'}`
+        : 'el rango de fechas seleccionado'
     };
     const periodText = periodLabels[activePeriod] || 'el periodo seleccionado';
     container.innerHTML = `
@@ -1011,7 +1052,7 @@ function initAutoTripRecorder() {
   const btnReset = document.getElementById('btn-reset-trips');
   const filterRow = document.getElementById('trip-category-filters');
 
-  // Period filter chips click handler (Todos, Hoy, Última semana, Este mes)
+  // Period filter chips click handler (Todos, Hoy, Última semana, Este mes, Personalizado)
   const periodRow = document.getElementById('trip-period-filters');
   if (periodRow) {
     periodRow.addEventListener('click', (e) => {
@@ -1024,9 +1065,65 @@ function initAutoTripRecorder() {
         all: 'Todos los periodos',
         today: 'Hoy',
         week: 'Última semana',
-        month: 'Este mes'
+        month: 'Este mes',
+        custom: 'Rango personalizado'
       };
       showToast(`📅 Periodo acumulado: ${periodNames[STATE.selectedTripPeriod] || STATE.selectedTripPeriod}`);
+    });
+  }
+
+  // Custom date range calendar buttons and inputs
+  const btnApplyCal = document.getElementById('btn-calendar-apply');
+  const btnClearCal = document.getElementById('btn-calendar-clear');
+  const inputDateFrom = document.getElementById('trip-date-from');
+  const inputDateTo = document.getElementById('trip-date-to');
+
+  if (btnApplyCal) {
+    btnApplyCal.addEventListener('click', () => {
+      const valFrom = inputDateFrom ? inputDateFrom.value : '';
+      const valTo = inputDateTo ? inputDateTo.value : '';
+      STATE.customDateFrom = valFrom;
+      STATE.customDateTo = valTo;
+      localStorage.setItem('biguaydi-trip-date-from', valFrom);
+      localStorage.setItem('biguaydi-trip-date-to', valTo);
+      STATE.selectedTripPeriod = 'custom';
+      localStorage.setItem('biguaydi-trip-period', 'custom');
+      renderTrips();
+      const rangeText = (valFrom && valTo)
+        ? `${valFrom} al ${valTo}`
+        : (valFrom ? `desde ${valFrom}` : (valTo ? `hasta ${valTo}` : 'todas'));
+      showToast(`📅 Filtro aplicado: ${rangeText}`);
+    });
+  }
+
+  if (btnClearCal) {
+    btnClearCal.addEventListener('click', () => {
+      if (inputDateFrom) inputDateFrom.value = '';
+      if (inputDateTo) inputDateTo.value = '';
+      STATE.customDateFrom = '';
+      STATE.customDateTo = '';
+      localStorage.removeItem('biguaydi-trip-date-from');
+      localStorage.removeItem('biguaydi-trip-date-to');
+      STATE.selectedTripPeriod = 'all';
+      localStorage.setItem('biguaydi-trip-period', 'all');
+      renderTrips();
+      showToast('📅 Fechas restablecidas a todos los periodos');
+    });
+  }
+
+  if (inputDateFrom) {
+    inputDateFrom.addEventListener('change', () => {
+      STATE.customDateFrom = inputDateFrom.value;
+      localStorage.setItem('biguaydi-trip-date-from', inputDateFrom.value);
+      if (STATE.selectedTripPeriod === 'custom') renderTrips();
+    });
+  }
+
+  if (inputDateTo) {
+    inputDateTo.addEventListener('change', () => {
+      STATE.customDateTo = inputDateTo.value;
+      localStorage.setItem('biguaydi-trip-date-to', inputDateTo.value);
+      if (STATE.selectedTripPeriod === 'custom') renderTrips();
     });
   }
 
