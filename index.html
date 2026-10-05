@@ -244,8 +244,203 @@
                 </div>
               </div>
 
-              <div class="calc-control-group">
-                <label>% Carga Solar en modo Mixto:</label>
+              <!-- ESQUEMA HIGH-TECH VIVIENDA SOLAR UNIFAMILIAR Y ESTACIONES -->
+              <div class="solar-home-card" id="solar-home-card" style="margin-top:14px;">
+                <div class="solar-home-header">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="solar-home-pulse-icon">⚡</span>
+                    <div>
+                      <b style="font-size:13px; color:var(--text); letter-spacing:-0.2px;">Vivienda Solar Inteligente</b>
+                      <small style="display:block; font-size:10.5px; color:var(--text-muted); font-family:var(--mono);" id="solar-season-badge">VERANO · 14.8h sol/día</small>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-geo-sun" id="btn-geo-sun" title="Calcular horas de sol exactas en tu casa vía GPS">
+                    📍 <span id="btn-geo-text">Mi Ubicación</span>
+                  </button>
+                </div>
+
+                <!-- ESQUEMA VECTORIAL HIGH TECH ANIMADO CON ESTACIÓN -->
+                <div class="solar-home-svg-container" id="solar-home-svg-container">
+                  <svg viewBox="0 0 460 210" class="solar-home-svg" id="solar-home-svg">
+                    <defs>
+                      <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#0a1922" id="sky-stop-0"/>
+                        <stop offset="100%" stop-color="#050e11" id="sky-stop-1"/>
+                      </linearGradient>
+                      <linearGradient id="solarPanelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#4ce0d2"/>
+                        <stop offset="100%" stop-color="#1a6a62"/>
+                      </linearGradient>
+                      <linearGradient id="sunGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#fff5a0"/>
+                        <stop offset="50%" stop-color="#ffd700"/>
+                        <stop offset="100%" stop-color="#ff7b39"/>
+                      </linearGradient>
+                      <filter id="sunGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+                        <feMerge>
+                          <feMergeNode in="blur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                      <filter id="wirePulse" x="-30%" y="-30%" width="160%" height="160%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+                        <feMerge>
+                          <feMergeNode in="blur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                    </defs>
+
+                    <!-- Sky background with dynamic season tint -->
+                    <rect x="0" y="0" width="460" height="210" rx="10" fill="url(#skyGrad)" id="solar-sky-rect"/>
+
+                    <!-- Ambient seasonal elements: Sun, Rays, Clouds/Trees -->
+                    <g id="solar-celestial-group">
+                      <!-- Sun orbit arc -->
+                      <path d="M 40 180 Q 230 20 420 180" fill="none" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                      
+                      <!-- Animated Glowing Sun with Seasonal Ray Pulse -->
+                      <g class="animated-sun" id="solar-sun-elem" transform="translate(370, 52)">
+                        <circle cx="0" cy="0" r="28" fill="rgba(255, 215, 0, 0.15)" class="sun-halo-pulse" id="sun-halo"/>
+                        <circle cx="0" cy="0" r="18" fill="url(#sunGrad)" filter="url(#sunGlow)"/>
+                        <!-- Sun flare dots -->
+                        <line x1="0" y1="-26" x2="0" y2="-21" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="0" y1="21" x2="0" y2="26" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="-26" y1="0" x2="-21" y2="0" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="21" y1="0" x2="26" y2="0" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="-18" y1="-18" x2="-14" y2="-14" stroke="#ffd700" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="14" y1="14" x2="18" y2="18" stroke="#ffd700" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="14" y1="-14" x2="18" y2="-18" stroke="#ffd700" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="-18" y1="18" x2="-14" y2="14" stroke="#ffd700" stroke-width="1.8" stroke-linecap="round"/>
+                      </g>
+
+                      <!-- Solar Energy Photon Stream from Sun down to Roof Panels -->
+                      <g class="photon-flow" id="photon-stream">
+                        <line x1="355" y1="62" x2="215" y2="88" stroke="rgba(255, 215, 0, 0.5)" stroke-width="2" stroke-dasharray="6 6" class="photon-ray-1"/>
+                        <line x1="365" y1="72" x2="245" y2="98" stroke="rgba(76, 224, 210, 0.5)" stroke-width="2" stroke-dasharray="6 6" class="photon-ray-2"/>
+                      </g>
+                    </g>
+
+                    <!-- Terrain ground line -->
+                    <line x1="10" y1="185" x2="450" y2="185" stroke="rgba(76, 224, 210, 0.25)" stroke-width="2"/>
+                    <line x1="10" y1="187" x2="450" y2="187" stroke="rgba(255, 255, 255, 0.04)" stroke-width="1"/>
+
+                    <!-- High-tech Single Family House Architecture -->
+                    <g class="house-structure" transform="translate(110, 50)">
+                      <!-- House Main Facade (modern geometric villa) -->
+                      <polygon points="10,75 75,32 140,75 140,135 10,135" fill="#0d1f1c" stroke="#1d443e" stroke-width="1.8"/>
+                      
+                      <!-- Garage / Carport module on the right -->
+                      <polygon points="140,85 210,85 210,135 140,135" fill="#091816" stroke="#1a3d37" stroke-width="1.5"/>
+                      <line x1="205" y1="85" x2="205" y2="135" stroke="rgba(76, 224, 210, 0.3)" stroke-width="2"/>
+
+                      <!-- ROOF PHOTOVOLTAIC PANELS -->
+                      <!-- Left slope pitch -->
+                      <polygon points="12,74 75,33 138,74 138,80 12,80" fill="rgba(10, 30, 26, 0.8)"/>
+                      <!-- Active Photovoltaic array with cyan grid cells -->
+                      <g class="pv-array">
+                        <polygon points="20,72 75,36 130,72" fill="url(#solarPanelGrad)" stroke="#6ef5e7" stroke-width="1.2" opacity="0.92"/>
+                        <!-- Cell grid lines -->
+                        <line x1="42" y1="58" x2="108" y2="58" stroke="rgba(6,12,10,0.7)" stroke-width="1.2"/>
+                        <line x1="56" y1="46" x2="94" y2="46" stroke="rgba(6,12,10,0.7)" stroke-width="1.2"/>
+                        <line x1="75" y1="36" x2="75" y2="72" stroke="rgba(6,12,10,0.8)" stroke-width="1.2"/>
+                        <line x1="50" y1="52" x2="40" y2="72" stroke="rgba(6,12,10,0.6)" stroke-width="1"/>
+                        <line x1="100" y1="52" x2="110" y2="72" stroke="rgba(6,12,10,0.6)" stroke-width="1"/>
+                        <!-- Photovoltaic shimmer overlay -->
+                        <polygon points="20,72 75,36 130,72" fill="rgba(255,255,255,0.12)" class="panel-shimmer"/>
+                      </g>
+
+                      <!-- House Modern Windows with interior ambient glow -->
+                      <rect x="25" y="88" width="30" height="22" rx="2" fill="rgba(76, 224, 210, 0.12)" stroke="#235c52" stroke-width="1.2"/>
+                      <line x1="40" y1="88" x2="40" y2="110" stroke="#1d443e" stroke-width="1"/>
+                      <rect x="85" y="88" width="32" height="22" rx="2" fill="rgba(76, 224, 210, 0.12)" stroke="#235c52" stroke-width="1.2"/>
+                      <line x1="101" y1="88" x2="101" y2="110" stroke="#1d443e" stroke-width="1"/>
+                      <rect x="58" y="105" width="22" height="30" rx="1.5" fill="#081412" stroke="#256257" stroke-width="1.2"/> <!-- Door -->
+
+                      <!-- Wallbox Charger & Energy Flow into Dolphin Surf -->
+                      <rect x="146" y="96" width="10" height="16" rx="2" fill="#071311" stroke="var(--accent)" stroke-width="1.4"/>
+                      <circle cx="151" cy="104" r="2.5" fill="var(--accent)" class="charger-led"/>
+
+                      <!-- High Tech Animated Energy Cables from Roof Panels to Inverter and Car -->
+                      <path d="M 75 72 L 75 102 L 146 102" fill="none" stroke="rgba(76, 224, 210, 0.85)" stroke-width="2" stroke-dasharray="4 3" class="circuit-flow-1"/>
+                      <path d="M 156 104 Q 172 108 178 122" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="5 3" class="circuit-flow-2"/>
+
+                      <!-- Dolphin Surf Silhouette under Carport -->
+                      <g class="car-under-carport" transform="translate(162, 108)">
+                        <!-- Car body contour -->
+                        <path d="M 4 22 C 8 16 16 13 24 13 L 36 13 C 44 13 50 16 54 22 L 56 26 L 0 26 Z" fill="#132c27" stroke="var(--accent)" stroke-width="1.2"/>
+                        <!-- Windshield & roof -->
+                        <path d="M 14 13 L 22 6 L 36 6 L 42 13 Z" fill="rgba(76,224,210,0.3)" stroke="rgba(76,224,210,0.6)" stroke-width="1"/>
+                        <!-- Wheels with hubs -->
+                        <circle cx="12" cy="26" r="5" fill="#060c0a" stroke="#28564e" stroke-width="1.5"/>
+                        <circle cx="12" cy="26" r="2" fill="var(--accent)"/>
+                        <circle cx="44" cy="26" r="5" fill="#060c0a" stroke="#28564e" stroke-width="1.5"/>
+                        <circle cx="44" cy="26" r="2" fill="var(--accent)"/>
+                        <!-- Headlight laser glow -->
+                        <polygon points="56,22 66,20 66,25 56,24" fill="rgba(76,224,210,0.4)" class="headlight-beam"/>
+                      </g>
+                    </g>
+
+                    <!-- Season Visual Badges / Flora Indicator on ground (Tree / Flowers / Snow) -->
+                    <g id="seasonal-landscape" transform="translate(42, 126)">
+                      <!-- Dynamic High-tech Tree that morphs with season -->
+                      <path d="M 32 58 L 32 38" stroke="#483324" stroke-width="3" stroke-linecap="round"/>
+                      <circle cx="32" cy="26" r="16" fill="#197a56" id="tree-canopy-1" opacity="0.9"/>
+                      <circle cx="24" cy="30" r="12" fill="#2eb885" id="tree-canopy-2" opacity="0.85"/>
+                      <circle cx="40" cy="30" r="12" fill="#156447" id="tree-canopy-3" opacity="0.85"/>
+                      <g id="season-extras"></g>
+                    </g>
+
+                    <!-- Real-time Solar Telemetry Overlay Pills -->
+                    <g transform="translate(18, 16)">
+                      <rect x="0" y="0" width="138" height="24" rx="12" fill="rgba(6,12,10,0.8)" stroke="rgba(76,224,210,0.3)" stroke-width="1"/>
+                      <circle cx="12" cy="12" r="4" fill="var(--accent)" class="live-dot"/>
+                      <text x="24" y="16" font-size="11" fill="var(--accent)" font-family="var(--mono)" font-weight="700" id="svg-solar-hours-text">14.8h Sol / Día</text>
+                    </g>
+
+                    <g transform="translate(18, 46)">
+                      <rect x="0" y="0" width="138" height="22" rx="11" fill="rgba(6,12,10,0.8)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                      <text x="12" y="15" font-size="10" fill="var(--text-muted)" font-family="var(--sans)">Potencia Teórica:</text>
+                      <text x="96" y="15" font-size="10.5" fill="#ffd700" font-family="var(--mono)" font-weight="700" id="svg-solar-power-text">4.8 kWp</text>
+                    </g>
+                  </svg>
+                </div>
+
+                <!-- SELECTOR DE ESTACIÓN DEL AÑO PARA % CARGA SOLAR -->
+                <div class="season-selector-wrapper">
+                  <div class="season-selector-label">
+                    <span>Estación / Rendimiento Solar:</span>
+                    <b id="solar-est-pct-display" style="color:var(--accent); font-family:var(--mono);">85% Solar</b>
+                  </div>
+                  
+                  <div class="season-pills-row" id="season-pills">
+                    <button type="button" class="season-pill" data-season="spring" title="Primavera (~12h sol · 75% carga solar)">
+                      🌱 <span>Primavera</span>
+                      <small>75%</small>
+                    </button>
+                    <button type="button" class="season-pill active" data-season="summer" title="Verano (~15h sol · 90% carga solar)">
+                      ☀️ <span>Verano</span>
+                      <small>90%</small>
+                    </button>
+                    <button type="button" class="season-pill" data-season="autumn" title="Otoño (~11h sol · 65% carga solar)">
+                      🍂 <span>Otoño</span>
+                      <small>65%</small>
+                    </button>
+                    <button type="button" class="season-pill" data-season="winter" title="Invierno (~9h sol · 40% carga solar)">
+                      ❄️ <span>Invierno</span>
+                      <small>40%</small>
+                    </button>
+                    <button type="button" class="season-pill" data-season="auto" title="Detección Automática según la fecha actual">
+                      🔄 <span>Auto</span>
+                      <small>Hoy</small>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="calc-control-group" style="margin-top:14px;">
+                <label>% Carga Solar efectivo en modo Mixto:</label>
                 <div class="calc-input-wrapper">
                   <input type="number" min="0" max="100" id="cfg-solar-pct" value="80">
                   <span>% Solar</span>

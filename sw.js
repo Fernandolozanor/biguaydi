@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v31-hide-traction-fix-trip-sorting';
+const CACHE = 'biguaydi-v32-solar-home-seasonal-energy-model';
 const ASSETS = [
   './',
   './index.html',

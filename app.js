@@ -7,10 +7,27 @@ const STATE = {
   fontSize: Number(localStorage.getItem('biguaydi-size')) || 3,
   view: 'dashboard',
   energySource: localStorage.getItem('biguaydi-energy-source') || 'solar', // grid, solar, mixed
+  solarSeason: localStorage.getItem('biguaydi-solar-season') || 'auto', // spring, summer, autumn, winter, auto
+  solarLocation: (function() {
+    try {
+      const saved = localStorage.getItem('biguaydi-solar-location');
+      return saved ? JSON.parse(saved) : { lat: 40.4168, lon: -3.7038, name: 'Madrid (Ref)' };
+    } catch (_) {
+      return { lat: 40.4168, lon: -3.7038, name: 'Madrid (Ref)' };
+    }
+  })(),
   prices: {
     kwhGrid: Number(localStorage.getItem('biguaydi-kwh-grid')) || 0.15,
     kwhSolar: Number(localStorage.getItem('biguaydi-kwh-solar')) || 0.00,
     solarPct: Number(localStorage.getItem('biguaydi-solar-pct')) || 80, // % of solar in mixed mode
+    solarSeasonalPct: (function() {
+      try {
+        const saved = localStorage.getItem('biguaydi-seasonal-pcts');
+        return saved ? JSON.parse(saved) : { spring: 75, summer: 90, autumn: 65, winter: 40 };
+      } catch (_) {
+        return { spring: 75, summer: 90, autumn: 65, winter: 40 };
+      }
+    })(),
     gas95: Number(localStorage.getItem('biguaydi-gas95')) || 1.62,
     diesel: Number(localStorage.getItem('biguaydi-diesel')) || 1.54,
     iceConsumption: Number(localStorage.getItem('biguaydi-ice-cons')) || 6.2, // l/100km Gasoline
@@ -177,12 +194,78 @@ function setFontSize(level) {
   updateCalculations();
 }
 
+// --- SOLAR ASTRONOMICAL ENGINE & DAYLIGHT CALCULATION ---
+export function calculateDaylightHours(date, lat = 40.4168) {
+  const d = date instanceof Date ? date : new Date(date || Date.now());
+  const startOfYear = new Date(d.getFullYear(), 0, 0);
+  const diff = d - startOfYear;
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  // Solar declination formula (Cooper, 1969)
+  const declination = 23.45 * Math.sin(((360 / 365) * (dayOfYear - 81)) * (Math.PI / 180));
+  const latRad = lat * (Math.PI / 180);
+  const decRad = declination * (Math.PI / 180);
+
+  // Hour angle at sunrise/sunset
+  const cosHourAngle = -Math.tan(latRad) * Math.tan(decRad);
+  const clampedCos = Math.max(-1, Math.min(1, cosHourAngle));
+  const hourAngle = Math.acos(clampedCos) * (180 / Math.PI);
+  const daylightHours = (2 * hourAngle) / 15;
+
+  return Number(daylightHours.toFixed(1));
+}
+
+export function getSeasonFromDate(date) {
+  const d = date instanceof Date ? date : new Date(date || Date.now());
+  const month = d.getMonth() + 1; // 1-12
+  const day = d.getDate();
+
+  // Astronomical season thresholds (Northern Hemisphere)
+  if ((month === 3 && day >= 20) || month === 4 || month === 5 || (month === 6 && day < 21)) {
+    return 'spring';
+  } else if ((month === 6 && day >= 21) || month === 7 || month === 8 || (month === 9 && day < 23)) {
+    return 'summer';
+  } else if ((month === 9 && day >= 23) || month === 10 || month === 11 || (month === 12 && day < 21)) {
+    return 'autumn';
+  } else {
+    return 'winter';
+  }
+}
+
+export function getActiveSeason() {
+  if (STATE.solarSeason && STATE.solarSeason !== 'auto') {
+    return STATE.solarSeason;
+  }
+  return getSeasonFromDate(new Date());
+}
+
+export function getSeasonalSolarPct(season) {
+  const s = season || getActiveSeason();
+  const pcts = STATE.prices.solarSeasonalPct || { spring: 75, summer: 90, autumn: 65, winter: 40 };
+  return Number(pcts[s]) || 80;
+}
+
 // --- CALCULATIONS: ELECTRICITY VS PETROL ---
-function getEffectiveElectricityPrice() {
+export function getEffectiveElectricityPrice(forTrip = null) {
   if (STATE.energySource === 'solar') return STATE.prices.kwhSolar;
   if (STATE.energySource === 'grid') return STATE.prices.kwhGrid;
-  // Mixed
-  const solarShare = STATE.prices.solarPct / 100;
+
+  // Mixed mode: calculate solar share based on trip date or current season
+  let solarSharePct = STATE.prices.solarPct;
+  if (forTrip) {
+    const tripTimestamp = typeof forTrip === 'object' ? getTripTimestamp(forTrip) : Number(forTrip);
+    if (tripTimestamp > 0) {
+      const tripSeason = getSeasonFromDate(new Date(tripTimestamp));
+      solarSharePct = getSeasonalSolarPct(tripSeason);
+    }
+  } else {
+    // Current live configuration
+    solarSharePct = (STATE.solarSeason === 'auto')
+      ? getSeasonalSolarPct(getActiveSeason())
+      : STATE.prices.solarPct;
+  }
+
+  const solarShare = Math.max(0, Math.min(100, solarSharePct)) / 100;
   return (STATE.prices.kwhSolar * solarShare) + (STATE.prices.kwhGrid * (1 - solarShare));
 }
 
@@ -309,6 +392,122 @@ function updateCalculations() {
     const valDiesel = document.getElementById('calc-bar-val-diesel');
     if (valDiesel) valDiesel.textContent = `${costDiesel100.toFixed(2)}€`;
   }
+
+  // Update high-tech Solar Home Scheme visualization
+  renderSolarHomeScheme();
+}
+
+// --- RENDER HIGH-TECH SOLAR HOME SCHEME ---
+export function renderSolarHomeScheme() {
+  const effectiveSeason = (STATE.solarSeason === 'auto')
+    ? getSeasonFromDate(new Date())
+    : (STATE.solarSeason || 'summer');
+
+  const loc = STATE.solarLocation || { lat: 40.4168, lon: -3.7038, name: 'Madrid' };
+  const daylightHours = calculateDaylightHours(new Date(), loc.lat);
+  const seasonalPct = getSeasonalSolarPct(effectiveSeason);
+
+  // Update text badges
+  const seasonLabels = {
+    spring: 'PRIMAVERA',
+    summer: 'VERANO',
+    autumn: 'OTOÑO',
+    winter: 'INVIERNO'
+  };
+
+  const badgeEl = document.getElementById('solar-season-badge');
+  if (badgeEl) {
+    badgeEl.textContent = `${seasonLabels[effectiveSeason] || 'ACTUAL'} · ${daylightHours}h sol/día (${loc.name || 'GPS'})`;
+  }
+
+  const estPctEl = document.getElementById('solar-est-pct-display');
+  if (estPctEl) {
+    estPctEl.textContent = `${seasonalPct}% Solar`;
+  }
+
+  const svgHours = document.getElementById('svg-solar-hours-text');
+  if (svgHours) {
+    svgHours.textContent = `${daylightHours}h Sol / Día`;
+  }
+
+  const svgPower = document.getElementById('svg-solar-power-text');
+  if (svgPower) {
+    // Estimated seasonal peak kWp based on solar irradiance
+    const seasonKwP = { spring: '4.2 kWp', summer: '5.4 kWp', autumn: '3.6 kWp', winter: '2.4 kWp' };
+    svgPower.textContent = seasonKwP[effectiveSeason] || '4.5 kWp';
+  }
+
+  // Update SVG Celestial & Nature Visuals according to season
+  const sunElem = document.getElementById('solar-sun-elem');
+  const sunHalo = document.getElementById('sun-halo');
+  const skyStop0 = document.getElementById('sky-stop-0');
+  const skyStop1 = document.getElementById('sky-stop-1');
+  const tree1 = document.getElementById('tree-canopy-1');
+  const tree2 = document.getElementById('tree-canopy-2');
+  const tree3 = document.getElementById('tree-canopy-3');
+  const extrasGroup = document.getElementById('season-extras');
+
+  // Season specific palettes and sun orbital positions
+  const seasonThemes = {
+    summer: {
+      sunPos: 'translate(370, 45)',
+      haloR: '30',
+      haloColor: 'rgba(255, 215, 0, 0.28)',
+      sky0: '#0b1d22',
+      sky1: '#040d0f',
+      treeColor1: '#1ea66a',
+      treeColor2: '#3ddc8c',
+      treeColor3: '#158352',
+      extras: '<circle cx="18" cy="46" r="3" fill="#ff7597"/><circle cx="28" cy="50" r="3" fill="#ffd700"/><circle cx="48" cy="48" r="3" fill="#6db6ff"/>'
+    },
+    spring: {
+      sunPos: 'translate(350, 58)',
+      haloR: '25',
+      haloColor: 'rgba(255, 220, 100, 0.22)',
+      sky0: '#0c1b1c',
+      sky1: '#050e0f',
+      treeColor1: '#2ec978',
+      treeColor2: '#57f29f',
+      treeColor3: '#229e5c',
+      extras: '<circle cx="20" cy="48" r="3.5" fill="#ff75b5"/><circle cx="34" cy="52" r="3.5" fill="#ffffff"/><circle cx="44" cy="49" r="3" fill="#ffd700"/>'
+    },
+    autumn: {
+      sunPos: 'translate(330, 72)',
+      haloR: '22',
+      haloColor: 'rgba(255, 140, 50, 0.22)',
+      sky0: '#1a1412',
+      sky1: '#0c0808',
+      treeColor1: '#d97724',
+      treeColor2: '#f59e0b',
+      treeColor3: '#b45309',
+      extras: '<path d="M 12 55 Q 16 52 20 56" stroke="#d97724" stroke-width="1.5" fill="none"/><path d="M 46 54 Q 50 51 54 55" stroke="#f59e0b" stroke-width="1.5" fill="none"/>'
+    },
+    winter: {
+      sunPos: 'translate(310, 85)',
+      haloR: '18',
+      haloColor: 'rgba(180, 220, 255, 0.20)',
+      sky0: '#0a141e',
+      sky1: '#060c12',
+      treeColor1: '#3a5f6e',
+      treeColor2: '#568498',
+      treeColor3: '#254452',
+      extras: '<polygon points="12,185 24,182 36,185" fill="#e2f1f8" opacity="0.8"/><polygon points="120,185 135,183 150,185" fill="#e2f1f8" opacity="0.8"/><circle cx="32" cy="18" r="3" fill="#e2f1f8" opacity="0.75"/>'
+    }
+  };
+
+  const st = seasonThemes[effectiveSeason] || seasonThemes.summer;
+
+  if (sunElem) sunElem.setAttribute('transform', st.sunPos);
+  if (sunHalo) {
+    sunHalo.setAttribute('r', st.haloR);
+    sunHalo.setAttribute('fill', st.haloColor);
+  }
+  if (skyStop0) skyStop0.setAttribute('stop-color', st.sky0);
+  if (skyStop1) skyStop1.setAttribute('stop-color', st.sky1);
+  if (tree1) tree1.setAttribute('fill', st.treeColor1);
+  if (tree2) tree2.setAttribute('fill', st.treeColor2);
+  if (tree3) tree3.setAttribute('fill', st.treeColor3);
+  if (extrasGroup) extrasGroup.innerHTML = st.extras;
 }
 
 // --- RENDER VEHICLE HUD & METRICS ---
@@ -550,7 +749,8 @@ function renderTrips() {
   periodTrips.forEach(trip => {
     totalDistance += trip.distance;
     totalEnergy += trip.energy;
-    const costEv = trip.energy * costPerKwh;
+    const tripCostPerKwh = getEffectiveElectricityPrice(trip);
+    const costEv = trip.energy * tripCostPerKwh;
     const costGas = (trip.distance / 100) * iceCons * gasPrice;
     const costDiesel = (trip.distance / 100) * dieselCons * dieselPrice;
     totalCostEv += costEv;
@@ -699,7 +899,8 @@ function renderTrips() {
     `;
   } else {
     container.innerHTML = displayedTrips.map((trip, idx) => {
-      const tripCostEv = trip.energy * costPerKwh;
+      const tripCostPerKwh = getEffectiveElectricityPrice(trip);
+      const tripCostEv = trip.energy * tripCostPerKwh;
       const tripCostGas = (trip.distance / 100) * iceCons * gasPrice;
       const tripCostDiesel = (trip.distance / 100) * dieselCons * dieselPrice;
       const tripSavingsGas = Math.max(0, tripCostGas - tripCostEv);
@@ -890,7 +1091,8 @@ function renderTripsChart() {
   const data = trips.map(t => {
     const costGas = (t.distance / 100) * iceCons * gasPrice;
     const costDiesel = (t.distance / 100) * dieselCons * dieselPrice;
-    const costEv = t.energy * costPerKwh;
+    const tripCostPerKwh = getEffectiveElectricityPrice(t);
+    const costEv = t.energy * tripCostPerKwh;
     return {
       title: t.title.split(' ')[0] || `V${t.id}`,
       dist: t.distance.toFixed(1) + 'km',
@@ -1902,6 +2104,78 @@ export function initApp() {
   bindInput('cfg-diesel-price', 'prices', 'diesel');
   bindInput('cfg-ice-cons', 'prices', 'iceConsumption');
   bindInput('cfg-diesel-cons', 'prices', 'dieselConsumption');
+
+  // --- SOLAR HOME HIGH-TECH ENGINE & SEASON CONTROL ---
+  renderSolarHomeScheme();
+
+  // Season pills listener
+  const seasonPills = document.querySelectorAll('#season-pills .season-pill');
+  seasonPills.forEach(pill => {
+    pill.classList.toggle('active', pill.dataset.season === (STATE.solarSeason || 'auto'));
+    pill.addEventListener('click', () => {
+      seasonPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const selectedSeason = pill.dataset.season;
+      STATE.solarSeason = selectedSeason;
+      localStorage.setItem('biguaydi-solar-season', selectedSeason);
+
+      // Update solarPct according to season
+      const effectiveSeason = (selectedSeason === 'auto') ? getSeasonFromDate(new Date()) : selectedSeason;
+      const seasonalPct = getSeasonalSolarPct(effectiveSeason);
+      STATE.prices.solarPct = seasonalPct;
+      localStorage.setItem('biguaydi-solar-pct', seasonalPct);
+      const inputSolarPct = document.getElementById('cfg-solar-pct');
+      if (inputSolarPct) inputSolarPct.value = seasonalPct;
+
+      renderSolarHomeScheme();
+      updateCalculations();
+      renderTrips();
+
+      const seasonNames = {
+        spring: 'Primavera (75% solar)',
+        summer: 'Verano (90% solar)',
+        autumn: 'Otoño (65% solar)',
+        winter: 'Invierno (40% solar)',
+        auto: 'Automática según fecha de hoy'
+      };
+      showToast(`☀️ Estación solar: ${seasonNames[selectedSeason] || selectedSeason}`);
+    });
+  });
+
+  // GPS Geolocation button for solar daylight calculation
+  const btnGeo = document.getElementById('btn-geo-sun');
+  if (btnGeo) {
+    btnGeo.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showToast('Geolocalización no soportada en este navegador');
+        return;
+      }
+      const textSpan = document.getElementById('btn-geo-text');
+      if (textSpan) textSpan.textContent = 'Localizando...';
+      btnGeo.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = Number(pos.coords.latitude.toFixed(4));
+          const lon = Number(pos.coords.longitude.toFixed(4));
+          STATE.solarLocation = { lat, lon, name: `GPS (${lat}°, ${lon}°)` };
+          localStorage.setItem('biguaydi-solar-location', JSON.stringify(STATE.solarLocation));
+          if (textSpan) textSpan.textContent = `${lat}°, ${lon}°`;
+          btnGeo.disabled = false;
+          renderSolarHomeScheme();
+          updateCalculations();
+          renderTrips();
+          showToast(`📍 Ubicación fijada: ${lat}°, ${lon}°. Radiación y horas de sol recalculadas.`);
+        },
+        (err) => {
+          btnGeo.disabled = false;
+          if (textSpan) textSpan.textContent = 'Mi Ubicación';
+          showToast('No se pudo obtener la ubicación (usando latitud de referencia España)');
+        },
+        { timeout: 10000, enableHighAccuracy: false }
+      );
+    });
+  }
 
   // Daily market prices fetcher manual button
   const fetchMarketBtn = document.getElementById('btn-fetch-market-prices');
