@@ -631,13 +631,9 @@ export function getRandomCo2Fact(kg) {
 
 export function getTripTimestamp(trip) {
   if (!trip) return 0;
-  if (trip.timestamp && !isNaN(Number(trip.timestamp))) {
-    return Number(trip.timestamp);
-  }
-  if (typeof trip.id === 'number' && trip.id > 1600000000000) {
-    return trip.id;
-  }
-  if (typeof trip.date === 'string') {
+
+  // 1. If explicit user/date string exists, parse it first to respect the visible date & time
+  if (typeof trip.date === 'string' && trip.date.trim()) {
     const raw = trip.date.trim();
     const dLower = raw.toLowerCase();
 
@@ -652,23 +648,45 @@ export function getTripTimestamp(trip) {
 
     const now = new Date();
     if (dLower.includes('hoy')) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
-      return d.getTime();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0).getTime();
     }
     if (dLower.includes('ayer')) {
       const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-      const d = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), hours, minutes, 0, 0);
-      return d.getTime();
+      return new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), hours, minutes, 0, 0).getTime();
     }
 
-    // Try parsing date string like "2026-10-05" or "02 Oct"
+    // Try parsing Spanish dates like "02 Oct" or "02 Oct, 14:30"
+    const spanishMonths = {
+      ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
+      jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11
+    };
+    const dayMonthMatch = raw.match(/(\d{1,2})\s+([a-zA-Z]{3})/);
+    if (dayMonthMatch) {
+      const day = parseInt(dayMonthMatch[1], 10);
+      const mStr = dayMonthMatch[2].toLowerCase();
+      if (spanishMonths[mStr] !== undefined) {
+        return new Date(now.getFullYear(), spanishMonths[mStr], day, hours, minutes, 0, 0).getTime();
+      }
+    }
+
+    // Standard ISO or standard Date.parse
     const parsed = Date.parse(raw);
     if (!isNaN(parsed)) {
       return parsed;
     }
   }
 
-  // Fallback: use numeric id or 0
+  // 2. Explicit millisecond timestamp
+  if (trip.timestamp && !isNaN(Number(trip.timestamp))) {
+    return Number(trip.timestamp);
+  }
+
+  // 3. Fallback to numeric id if epoch timestamp (> 1600000000000)
+  if (typeof trip.id === 'number' && trip.id > 1600000000000) {
+    return trip.id;
+  }
+
+  // 4. Numeric id fallback
   return Number(trip.id) || 0;
 }
 

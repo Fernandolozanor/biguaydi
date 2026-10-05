@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v32-solar-home-seasonal-energy-model';
+const CACHE = 'biguaydi-v33-fix-trip-chronological-sorting-priority';
 const ASSETS = [
   './',
   './index.html',
