@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v26-turquoise-and-dark-blue-split-bar';
+const CACHE = 'biguaydi-v27-chart-label-collision-prevention';
 const ASSETS = [
   './',
   './index.html',

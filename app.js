@@ -863,9 +863,43 @@ function renderTripsChart() {
     const yDiesel = padT + (plotH - hDiesel);
     const yEv = padT + (plotH - hEv);
 
-    const whNorm = (d.wh - minWh) / Math.max(1, maxWh - minWh);
-    const yWh = padT + (plotH - (whNorm * (plotH * 0.6) + (plotH * 0.2)));
-    linePoints.push({ x: cx, y: yWh, val: d.wh });
+    // Anti-collision algorithm between Wh dashed line/circle and bar price labels
+    const collisionDist = 18; // px threshold for collision
+
+    // Default label positions (5px above bar top)
+    let textYGas = yGas - 5;
+    let textYDiesel = yDiesel - 5;
+    let textYEv = yEv - 5;
+
+    // Check collision with the Wh line point (cx, yWh)
+    const collidesGas = Math.abs(textYGas - yWh) < collisionDist;
+    const collidesDiesel = Math.abs(textYDiesel - yWh) < collisionDist;
+    const collidesEv = hasEvCost && Math.abs(textYEv - yWh) < collisionDist;
+
+    // Displace away from line if colliding
+    if (collidesGas) {
+      if (yWh <= textYGas) {
+        textYGas = Math.min(yGas + 14, H - 35); // place inside top of bar if room, or push down
+      } else {
+        textYGas = Math.max(padT - 6, yWh - 16); // push above line
+      }
+    }
+
+    if (collidesDiesel) {
+      if (yWh <= textYDiesel) {
+        textYDiesel = Math.min(yDiesel + 14, H - 35);
+      } else {
+        textYDiesel = Math.max(padT - 6, yWh - 16);
+      }
+    }
+
+    if (collidesEv) {
+      if (yWh <= textYEv) {
+        textYEv = Math.min(yEv + 14, H - 35);
+      } else {
+        textYEv = Math.max(padT - 6, yWh - 16);
+      }
+    }
 
     let evBarSvg = '';
     if (hasEvCost) {
@@ -873,7 +907,8 @@ function renderTripsChart() {
         <!-- Coste Eléctrico EV Bar (Verde) -->
         <rect x="${xEv}" y="${yEv}" width="${barW}" height="${hEv}" rx="3.5" fill="url(#tripEvGrad)" />
         <rect x="${xEv}" y="${yEv}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowGreen)" />
-        <text x="${xEv + barW / 2}" y="${yEv - 5}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="700" fill="var(--accent)" text-anchor="middle" font-family="var(--mono)">${d.costEv.toFixed(2)}€</text>
+        <rect x="${xEv - 2}" y="${textYEv - 9}" width="${barW + 4}" height="11" rx="2" fill="rgba(6,12,10,0.75)" />
+        <text x="${xEv + barW / 2}" y="${textYEv}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="700" fill="var(--accent)" text-anchor="middle" font-family="var(--mono)">${d.costEv.toFixed(2)}€</text>
       `;
     }
 
@@ -884,12 +919,14 @@ function renderTripsChart() {
         <!-- Gasolina 95 Bar -->
         <rect x="${xGas}" y="${yGas}" width="${barW}" height="${hGas}" rx="3.5" fill="url(#tripGasGrad)" />
         <rect x="${xGas}" y="${yGas}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowGas)" />
-        <text x="${xGas + barW / 2}" y="${yGas - 5}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
+        <rect x="${xGas - 3}" y="${textYGas - 9}" width="${barW + 6}" height="11" rx="2" fill="rgba(6,12,10,0.75)" />
+        <text x="${xGas + barW / 2}" y="${textYGas}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
 
         <!-- Diésel A Bar -->
         <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="${hDiesel}" rx="3.5" fill="url(#tripDieGrad)" />
         <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowDie)" />
-        <text x="${xDiesel + barW / 2}" y="${yDiesel - 5}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
+        <rect x="${xDiesel - 3}" y="${textYDiesel - 9}" width="${barW + 6}" height="11" rx="2" fill="rgba(6,12,10,0.75)" />
+        <text x="${xDiesel + barW / 2}" y="${textYDiesel}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
 
         <!-- Labels -->
         <text x="${cx}" y="${H - 22}" font-size="${(12 * fontScale).toFixed(1)}" class="chart-text-title" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
