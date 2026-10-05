@@ -19,6 +19,7 @@ const STATE = {
     date: localStorage.getItem('biguaydi-prices-date') || new Date().toLocaleDateString('es-ES')
   },
   selectedTripCategory: 'all',
+  selectedTripPeriod: localStorage.getItem('biguaydi-trip-period') || 'all',
   tripSort: localStorage.getItem('biguaydi-trip-sort') || 'recent',
   // Loaded from cache or default values for Dolphin Surf
   vehicle: (function() {
@@ -399,6 +400,40 @@ export function getRandomCo2Fact(kg) {
   return facts[currentCo2FactIndex];
 }
 
+function isTripInPeriod(trip, period) {
+  if (!period || period === 'all') return true;
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekStart = todayStart - (6 * 24 * 60 * 60 * 1000); // last 7 days
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+  // Try parsing trip timestamp or ID (Date.now())
+  let tripTime = null;
+  if (trip.timestamp) {
+    tripTime = Number(trip.timestamp);
+  } else if (typeof trip.id === 'number' && trip.id > 1600000000000) {
+    tripTime = trip.id;
+  } else if (typeof trip.date === 'string') {
+    const dLower = trip.date.toLowerCase();
+    if (dLower.includes('hoy')) {
+      tripTime = Date.now();
+    } else if (dLower.includes('ayer')) {
+      tripTime = Date.now() - (24 * 60 * 60 * 1000);
+    }
+  }
+
+  // Fallback: If trip time couldn't be parsed, treat as recent
+  if (!tripTime) {
+    tripTime = Date.now() - (2 * 24 * 60 * 60 * 1000);
+  }
+
+  if (period === 'today') return tripTime >= todayStart;
+  if (period === 'week') return tripTime >= weekStart;
+  if (period === 'month') return tripTime >= monthStart;
+  return true;
+}
+
 // --- TRIPS RENDER, KPIS & IMPACTFUL CHART ---
 function renderTrips() {
   const container = document.getElementById('trips-list');
@@ -410,14 +445,24 @@ function renderTrips() {
   const iceCons = STATE.prices.iceConsumption;
   const dieselCons = STATE.prices.dieselConsumption;
 
-  // 1. Compute Aggregated KPIs
+  // Active Time Period Filter
+  const activePeriod = STATE.selectedTripPeriod || 'all';
+  const periodChips = document.querySelectorAll('#trip-period-filters .trip-period-chip');
+  periodChips.forEach(pChip => {
+    pChip.classList.toggle('active', pChip.dataset.period === activePeriod);
+  });
+
+  // Base trips filtered by time period (for both aggregated KPIs and listing)
+  const periodTrips = STATE.trips.filter(t => isTripInPeriod(t, activePeriod));
+
+  // 1. Compute Aggregated KPIs for the Selected Period
   let totalDistance = 0;
   let totalEnergy = 0;
   let totalCostEv = 0;
   let totalCostGas = 0;
   let totalCostDiesel = 0;
 
-  STATE.trips.forEach(trip => {
+  periodTrips.forEach(trip => {
     totalDistance += trip.distance;
     totalEnergy += trip.energy;
     const costEv = trip.energy * costPerKwh;
@@ -433,7 +478,7 @@ function renderTrips() {
   const avgKwh100km = totalDistance > 0 ? ((totalEnergy / totalDistance) * 100) : 0;
   const avgWh = totalDistance > 0 ? Math.round((totalEnergy * 1000) / totalDistance) : 0;
   const co2AvoidedKg = (totalDistance * 104) / 1000;
-  const avgDistPerTrip = STATE.trips.length > 0 ? (totalDistance / STATE.trips.length) : 0;
+  const avgDistPerTrip = periodTrips.length > 0 ? (totalDistance / periodTrips.length) : 0;
 
   // Thermal fuel liters required to produce the same financial expense
   const costEv100 = totalDistance > 0 ? ((totalCostEv / totalDistance) * 100) : (avgKwh100km * costPerKwh);
@@ -457,7 +502,7 @@ function renderTrips() {
   const elOdoBase = document.getElementById('recorder-base-odo');
 
   if (elDist) elDist.textContent = `${totalDistance.toFixed(1)} km`;
-  if (elCount) elCount.textContent = STATE.trips.length;
+  if (elCount) elCount.textContent = periodTrips.length;
   if (elAvgDist) elAvgDist.textContent = `${avgDistPerTrip.toFixed(1)} km`;
   if (elSavings) elSavings.textContent = `${totalSavingsGas.toFixed(2)} €`;
   if (elTotalCost) elTotalCost.textContent = `${totalCostEv.toFixed(2)} €`;
@@ -486,8 +531,8 @@ function renderTrips() {
 
   // Dynamic mini bars for distance variation across recent trips
   const miniBars = document.querySelectorAll('.dist-mini-chart .mini-bar');
-  if (miniBars.length > 0 && STATE.trips.length > 0) {
-    const recentTrips = STATE.trips.slice(0, miniBars.length);
+  if (miniBars.length > 0 && periodTrips.length > 0) {
+    const recentTrips = periodTrips.slice(0, miniBars.length);
     const maxRecentDist = Math.max(...recentTrips.map(t => t.distance), 1);
     miniBars.forEach((bar, bIdx) => {
       const tripItem = recentTrips[bIdx];
@@ -511,10 +556,10 @@ function renderTrips() {
     sortSelect.value = STATE.tripSort;
   }
 
-  // Base list filtered by category
+  // Base list filtered by time period AND category
   let filtered = activeCat === 'all'
-    ? [...STATE.trips]
-    : STATE.trips.filter(t => (t.category || 'trabajo') === activeCat);
+    ? [...periodTrips]
+    : periodTrips.filter(t => (t.category || 'trabajo') === activeCat);
 
   // Sorting logic
   const sortMode = STATE.tripSort || 'recent';
@@ -540,11 +585,18 @@ function renderTrips() {
 
   // Render List of Trip Cards
   if (displayedTrips.length === 0) {
+    const periodLabels = {
+      all: 'todos los registros',
+      today: 'el día de hoy',
+      week: 'la última semana',
+      month: 'este mes'
+    };
+    const periodText = periodLabels[activePeriod] || 'el periodo seleccionado';
     container.innerHTML = `
       <div style="text-align:center; padding:36px 20px; color:var(--text-muted); background:var(--panel-card); border:1px solid var(--panel-border); border-radius:var(--radius-sm);">
         <span style="font-size:32px; display:block; margin-bottom:8px;">🚗</span>
-        <b>Sin trayectos en esta categoría</b>
-        <p style="font-size:12.5px; margin-top:4px;">${activeCat === 'all' ? 'Pulsa en "Simular y Probar Trayecto" o sincroniza con tu coche para registrar automáticamente.' : 'No hay viajes categorizados como ' + (TRIP_CATEGORIES[activeCat]?.label || activeCat) + '.'}</p>
+        <b>Sin trayectos para ${periodText}</b>
+        <p style="font-size:12.5px; margin-top:4px;">${activeCat === 'all' ? 'Prueba seleccionando "Todos" en el periodo o pulsa "Simular y Probar Trayecto".' : 'No hay viajes categorizados como ' + (TRIP_CATEGORIES[activeCat]?.label || activeCat) + ' en ' + periodText + '.'}</p>
       </div>
     `;
   } else {
@@ -861,6 +913,25 @@ function initAutoTripRecorder() {
   const btnSim = document.getElementById('btn-simulate-trip');
   const btnReset = document.getElementById('btn-reset-trips');
   const filterRow = document.getElementById('trip-category-filters');
+
+  // Period filter chips click handler (Todos, Hoy, Última semana, Este mes)
+  const periodRow = document.getElementById('trip-period-filters');
+  if (periodRow) {
+    periodRow.addEventListener('click', (e) => {
+      const chip = e.target.closest('.trip-period-chip');
+      if (!chip) return;
+      STATE.selectedTripPeriod = chip.dataset.period || 'all';
+      localStorage.setItem('biguaydi-trip-period', STATE.selectedTripPeriod);
+      renderTrips();
+      const periodNames = {
+        all: 'Todos los periodos',
+        today: 'Hoy',
+        week: 'Última semana',
+        month: 'Este mes'
+      };
+      showToast(`📅 Periodo acumulado: ${periodNames[STATE.selectedTripPeriod] || STATE.selectedTripPeriod}`);
+    });
+  }
 
   // Filter chips click handler
   if (filterRow) {

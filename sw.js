@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v20-persist-charging-energy-source';
+const CACHE = 'biguaydi-v21-trip-period-filters-and-accumulation';
 const ASSETS = [
   './',
   './index.html',

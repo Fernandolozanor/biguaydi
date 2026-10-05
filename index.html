@@ -528,7 +528,20 @@
             </div>
           </div>
 
-          <!-- KPIS GRID -->
+          <!-- TIME PERIOD ACCUMULATION FILTER -->
+          <div class="trip-period-filter-bar" style="margin-bottom:16px;">
+            <div class="trip-period-filter-label">
+              <span class="period-icon">📅</span>
+              <span>Acumular periodo:</span>
+            </div>
+            <div class="trip-period-chips" id="trip-period-filters">
+              <button class="trip-period-chip active" data-period="all" type="button">🌐 Todos</button>
+              <button class="trip-period-chip" data-period="today" type="button">⚡ Hoy</button>
+              <button class="trip-period-chip" data-period="week" type="button">🗓️ Última semana</button>
+              <button class="trip-period-chip" data-period="month" type="button">📊 Este mes</button>
+            </div>
+          </div>
+
           <!-- KPIS GRID CON DETALLE Y MINI-GRÁFICOS LATERALES -->
           <div class="grid-cols-4 trip-kpis-grid" style="margin-bottom:22px;">
             <!-- 1. DISTANCIA TOTAL -->
