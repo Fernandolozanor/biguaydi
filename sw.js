@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v17-split-trip-kpis-and-mini-charts';
+const CACHE = 'biguaydi-v18-trip-sort-and-spacious-cards';
 const ASSETS = [
   './',
   './index.html',

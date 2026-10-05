@@ -642,10 +642,24 @@
             </div>
           </div>
 
-          <!-- DETAILED LIST -->
-          <div class="view-header" style="margin-top:28px; margin-bottom:14px;">
-            <span class="overline">REGISTRO CRONOLÓGICO</span>
-            <h3>Detalle de Trayectos</h3>
+          <!-- DETAILED LIST HEADER & SORT TOOLBAR -->
+          <div class="trips-list-toolbar" style="margin-top:28px; margin-bottom:12px;">
+            <div>
+              <span class="overline">REGISTRO CRONOLÓGICO</span>
+              <h3 style="margin-top:2px;">Detalle de Trayectos</h3>
+            </div>
+            <!-- SELECTOR DE ORDENACIÓN / ANTIGÜEDAD -->
+            <div class="trip-sort-wrapper">
+              <label for="trip-sort-select" class="trip-sort-label">⇅ Ordenar:</label>
+              <select id="trip-sort-select" class="trip-sort-select" title="Cambiar orden de la lista de trayectos">
+                <option value="recent">⏱️ Más recientes primero</option>
+                <option value="oldest">⏳ Más antiguos primero</option>
+                <option value="custom">✋ Orden manual (personalizado)</option>
+                <option value="dist-desc">📏 Mayor distancia</option>
+                <option value="dist-asc">📐 Menor distancia</option>
+                <option value="savings-desc">💰 Mayor ahorro</option>
+              </select>
+            </div>
           </div>
 
           <!-- CATEGORY FILTER CHIPS -->

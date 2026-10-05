@@ -19,6 +19,7 @@ const STATE = {
     date: localStorage.getItem('biguaydi-prices-date') || new Date().toLocaleDateString('es-ES')
   },
   selectedTripCategory: 'all',
+  tripSort: localStorage.getItem('biguaydi-trip-sort') || 'recent',
   // Loaded from cache or default values for Dolphin Surf
   vehicle: (function() {
     try {
@@ -498,16 +499,44 @@ function renderTrips() {
     });
   }
 
-  // 2. Filter Trips by Active Category
+  // 2. Filter & Sort Trips
   const activeCat = STATE.selectedTripCategory || 'all';
   const chips = document.querySelectorAll('#trip-category-filters .trip-filter-chip');
   chips.forEach(chip => {
     chip.classList.toggle('active', chip.dataset.category === activeCat);
   });
 
-  const displayedTrips = activeCat === 'all'
-    ? STATE.trips
+  const sortSelect = document.getElementById('trip-sort-select');
+  if (sortSelect && sortSelect.value !== STATE.tripSort) {
+    sortSelect.value = STATE.tripSort;
+  }
+
+  // Base list filtered by category
+  let filtered = activeCat === 'all'
+    ? [...STATE.trips]
     : STATE.trips.filter(t => (t.category || 'trabajo') === activeCat);
+
+  // Sorting logic
+  const sortMode = STATE.tripSort || 'recent';
+  if (sortMode === 'oldest') {
+    // Reverse original order: oldest first (lower id/index first)
+    filtered.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+  } else if (sortMode === 'recent') {
+    // Highest id first (most recent)
+    filtered.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+  } else if (sortMode === 'dist-desc') {
+    filtered.sort((a, b) => b.distance - a.distance);
+  } else if (sortMode === 'dist-asc') {
+    filtered.sort((a, b) => a.distance - b.distance);
+  } else if (sortMode === 'savings-desc') {
+    filtered.sort((a, b) => {
+      const savA = ((a.distance / 100) * iceCons * gasPrice) - (a.energy * costPerKwh);
+      const savB = ((b.distance / 100) * iceCons * gasPrice) - (b.energy * costPerKwh);
+      return savB - savA;
+    });
+  } // 'custom' keeps current STATE.trips array order without automatic sorting
+
+  const displayedTrips = filtered;
 
   // Render List of Trip Cards
   if (displayedTrips.length === 0) {
@@ -530,34 +559,66 @@ function renderTrips() {
 
       return `
         <article class="trip-card ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="true">
-          <div class="trip-card-main">
-            <div class="trip-route-badge reorder-handle" title="Arrastra o usa las flechas para mover" data-id="${trip.id}">⌖</div>
-            <div class="trip-details">
-              <div class="trip-title">
-                <b>${trip.title}</b>
-                <span class="trip-category-tag ${catKey}">${catObj.icon} ${catObj.label}</span>
-                <span class="trip-time">${trip.date} · ${trip.duration}</span>
-              </div>
-              <div class="trip-stats-row">
-                <span><b>${trip.distance.toFixed(1)}</b> km</span>
-                <span><b>${trip.energy.toFixed(2)}</b> kWh</span>
-                <span><b>${trip.avgWh}</b> Wh/km</span>
-              </div>
-            </div>
-          </div>
-          <div class="trip-card-right">
-            <div class="trip-cost-badge">
-              <div class="trip-ev-cost">${tripCostEv.toFixed(2)} €</div>
-              <div class="trip-ice-comp">
-                <div>Gas: ${tripCostGas.toFixed(2)}€ <b class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)}€</b></div>
-                <div>Diésel: ${tripCostDiesel.toFixed(2)}€ <b class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)}€</b></div>
+          <!-- CABECERA DE LA TARJETA: ÍCONO REORDENAR, TÍTULO, CATEGORÍA Y FECHA -->
+          <div class="trip-card-header">
+            <div class="trip-header-left">
+              <div class="trip-route-badge reorder-handle" title="Arrastra o usa las flechas para mover" data-id="${trip.id}">⌖</div>
+              <div class="trip-title-block">
+                <div class="trip-title-line">
+                  <b class="trip-name">${trip.title}</b>
+                  <span class="trip-category-tag ${catKey}">${catObj.icon} ${catObj.label}</span>
+                </div>
+                <div class="trip-time-stamp">
+                  <span>📅 ${trip.date}</span>
+                  <span class="bullet">·</span>
+                  <span>⏱️ ${trip.duration}</span>
+                </div>
               </div>
             </div>
+
+            <!-- BOTONES DE ACCIÓN (SUBIR, BAJAR, EDITAR, BORRAR) -->
             <div class="trip-card-actions">
               <button class="trip-action-btn btn-move-up" data-id="${trip.id}" title="Subir orden" type="button" ${idx === 0 ? 'disabled style="opacity:0.35;"' : ''}>▲</button>
               <button class="trip-action-btn btn-move-down" data-id="${trip.id}" title="Bajar orden" type="button" ${idx === displayedTrips.length - 1 ? 'disabled style="opacity:0.35;"' : ''}>▼</button>
               <button class="trip-action-btn btn-edit-trip" data-id="${trip.id}" title="Editar trayecto" type="button">✏️</button>
               <button class="trip-action-btn btn-delete-trip" data-id="${trip.id}" title="Eliminar trayecto" type="button">🗑️</button>
+            </div>
+          </div>
+
+          <!-- CUERPO DE LA TARJETA: MÉTRICAS FÍSICAS Y AUDITORÍA ECONÓMICA -->
+          <div class="trip-card-body">
+            <!-- BLOQUE 1: MÉTRICAS DEL VEHÍCULO -->
+            <div class="trip-metrics-grid">
+              <div class="trip-metric-item">
+                <span class="metric-label">DISTANCIA</span>
+                <b class="metric-val">${trip.distance.toFixed(1)} <small>km</small></b>
+              </div>
+              <div class="trip-metric-item">
+                <span class="metric-label">ENERGÍA</span>
+                <b class="metric-val">${trip.energy.toFixed(2)} <small>kWh</small></b>
+              </div>
+              <div class="trip-metric-item">
+                <span class="metric-label">EFICIENCIA</span>
+                <b class="metric-val">${trip.avgWh} <small>Wh/km</small></b>
+              </div>
+            </div>
+
+            <!-- BLOQUE 2: COSTE REAL Y AHORRO FRENTE A TÉRMICOS -->
+            <div class="trip-financial-box">
+              <div class="trip-ev-cost-badge">
+                <span class="cost-label">COSTE EV</span>
+                <span class="cost-number">${tripCostEv.toFixed(2)} €</span>
+              </div>
+              <div class="trip-ice-savings-tags">
+                <div class="savings-tag-row">
+                  <span class="ice-type">Gas 95: ${tripCostGas.toFixed(2)}€</span>
+                  <span class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)} €</span>
+                </div>
+                <div class="savings-tag-row">
+                  <span class="ice-type">Diésel: ${tripCostDiesel.toFixed(2)}€</span>
+                  <span class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)} €</span>
+                </div>
+              </div>
             </div>
           </div>
         </article>
@@ -605,6 +666,8 @@ export function moveTrip(id, direction) {
 
   const [trip] = STATE.trips.splice(index, 1);
   STATE.trips.splice(targetIndex, 0, trip);
+  STATE.tripSort = 'custom';
+  localStorage.setItem('biguaydi-trip-sort', 'custom');
   localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
   renderTrips();
   showToast('✓ Posición del trayecto actualizada');
@@ -647,6 +710,8 @@ export function initTripDragAndDrop() {
         if (fromIdx !== -1 && toIdx !== -1) {
           const [moved] = STATE.trips.splice(fromIdx, 1);
           STATE.trips.splice(toIdx, 0, moved);
+          STATE.tripSort = 'custom';
+          localStorage.setItem('biguaydi-trip-sort', 'custom');
           localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
           renderTrips();
           showToast('✓ Trayecto reordenado con éxito');
@@ -804,6 +869,26 @@ function initAutoTripRecorder() {
       if (!chip) return;
       STATE.selectedTripCategory = chip.dataset.category || 'all';
       renderTrips();
+    });
+  }
+
+  // Sort order selector listener
+  const sortSelect = document.getElementById('trip-sort-select');
+  if (sortSelect) {
+    sortSelect.value = STATE.tripSort || 'recent';
+    sortSelect.addEventListener('change', () => {
+      STATE.tripSort = sortSelect.value;
+      localStorage.setItem('biguaydi-trip-sort', sortSelect.value);
+      renderTrips();
+      const sortLabels = {
+        recent: 'Más recientes primero',
+        oldest: 'Más antiguos primero',
+        custom: 'Orden personalizado manual',
+        'dist-desc': 'Mayor distancia',
+        'dist-asc': 'Menor distancia',
+        'savings-desc': 'Mayor ahorro'
+      };
+      showToast(`⇅ Orden: ${sortLabels[sortSelect.value] || sortSelect.value}`);
     });
   }
 
