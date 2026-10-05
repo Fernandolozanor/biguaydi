@@ -1621,63 +1621,43 @@ body[data-size="5"] {
   position: relative;
 }
 
-/* Thermal Equivalent Liters in Efficiency Card */
-.side-thermal-liters {
+/* Real Range 100% and Mini Battery Gauge in Efficiency Card */
+.trip-mini-battery-gauge {
   display: flex;
-  align-items: baseline;
-  gap: 5px;
-  margin-top: 2px;
-}
-
-.side-thermal-liters .thermal-sep {
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.thermal-item {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.thermal-item.gas {
-  color: #ff8c73;
-}
-
-.thermal-item.diesel {
-  color: #f5cc7f;
-}
-
-.thermal-item small {
-  font-size: 9.5px;
-  font-weight: 500;
-  opacity: 0.85;
-}
-
-.trip-mini-flame-bar {
-  display: flex;
-  gap: 4px;
-  margin-top: 7px;
+  align-items: center;
+  gap: 3px;
+  margin-top: 8px;
   width: 100%;
+  max-width: 90px;
   justify-content: flex-end;
 }
 
-.trip-mini-flame-bar .flame-pill {
-  height: 4px;
-  border-radius: 2px;
+.mini-battery-case {
+  flex: 1;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1.5px solid rgba(110, 231, 183, 0.5);
+  border-radius: 3px;
+  padding: 1px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 0 8px rgba(110, 231, 183, 0.15);
 }
 
-.trip-mini-flame-bar .gas-pill {
-  width: 24px;
-  background: #ff8c73;
-  box-shadow: 0 0 5px rgba(255, 140, 115, 0.4);
+.mini-battery-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 70%, #6ee7b7 100%);
+  border-radius: 1.5px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
 }
 
-.trip-mini-flame-bar .diesel-pill {
-  width: 26px;
-  background: #f5cc7f;
-  box-shadow: 0 0 5px rgba(245, 204, 127, 0.4);
+.mini-battery-tip {
+  width: 3px;
+  height: 5px;
+  background: rgba(110, 231, 183, 0.5);
+  border-radius: 0 1.5px 1.5px 0;
 }
 
 /* CO2 Curiosity Box on Right Side - Auto-expandible en altura */

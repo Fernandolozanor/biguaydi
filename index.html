@@ -595,18 +595,16 @@
                 <p class="card-data-sub">Media: <b id="kpi-trip-wh">145</b> Wh/km</p>
               </div>
               <div class="trip-kpi-side">
-                <div class="trip-kpi-side-badge side-badge-thermal">
-                  <span class="side-kpi-title">MISMO COSTE EN LITROS</span>
-                  <div class="side-thermal-liters">
-                    <span class="thermal-item gas"><b id="kpi-trip-eq-gas">1.2 L</b> <small>Gas</small></span>
-                    <span class="thermal-sep">·</span>
-                    <span class="thermal-item diesel"><b id="kpi-trip-eq-diesel">1.3 L</b> <small>Diésel</small></span>
-                  </div>
+                <div class="trip-kpi-side-badge side-badge-range">
+                  <span class="side-kpi-title">AUTONOMÍA REAL 100%</span>
+                  <b class="side-kpi-value" id="kpi-trip-real-range" style="color:#6ee7b7;">303 km</b>
                 </div>
-                <!-- Mini barra térmica comparativa -->
-                <div class="trip-mini-flame-bar" title="Equivalente en litros por 100km">
-                  <span class="flame-pill gas-pill"></span>
-                  <span class="flame-pill diesel-pill"></span>
+                <!-- Mini Gráfico de Batería y Alcance Real -->
+                <div class="trip-mini-battery-gauge" title="Autonomía real calculada con batería de 44.9 kWh">
+                  <div class="mini-battery-case">
+                    <div class="mini-battery-fill" id="kpi-trip-battery-fill" style="width:100%;"></div>
+                  </div>
+                  <span class="mini-battery-tip"></span>
                 </div>
               </div>
             </div>

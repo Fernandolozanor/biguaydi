@@ -480,10 +480,13 @@ function renderTrips() {
   const co2AvoidedKg = (totalDistance * 104) / 1000;
   const avgDistPerTrip = periodTrips.length > 0 ? (totalDistance / periodTrips.length) : 0;
 
-  // Thermal fuel liters required to produce the same financial expense
-  const costEv100 = totalDistance > 0 ? ((totalCostEv / totalDistance) * 100) : (avgKwh100km * costPerKwh);
-  const eqLitersGas100 = gasPrice > 0 ? (costEv100 / gasPrice) : 0;
-  const eqLitersDiesel100 = dieselPrice > 0 ? (costEv100 / dieselPrice) : 0;
+  // Real estimated range on 100% battery (Dolphin Surf Blade Battery: 44.9 kWh net)
+  const batteryCapacityKwh = 44.9;
+  const estimatedRealRange100 = avgKwh100km > 0
+    ? Math.round((batteryCapacityKwh / avgKwh100km) * 100)
+    : 310;
+  // Percentage compared to WLTP standard (310 km)
+  const rangeFillPct = Math.max(30, Math.min(100, Math.round((estimatedRealRange100 / 310) * 100)));
 
   // Update KPI DOM elements
   const elDist = document.getElementById('kpi-trip-distance');
@@ -495,8 +498,8 @@ function renderTrips() {
   const elSavDiesel = document.getElementById('kpi-trip-sav-diesel');
   const elEff = document.getElementById('kpi-trip-efficiency');
   const elWh = document.getElementById('kpi-trip-wh');
-  const elEqGas = document.getElementById('kpi-trip-eq-gas');
-  const elEqDiesel = document.getElementById('kpi-trip-eq-diesel');
+  const elRealRange = document.getElementById('kpi-trip-real-range');
+  const elBatteryFill = document.getElementById('kpi-trip-battery-fill');
   const elCo2 = document.getElementById('kpi-trip-co2');
   const elCo2Fact = document.getElementById('kpi-trip-co2-fact');
   const elOdoBase = document.getElementById('recorder-base-odo');
@@ -510,8 +513,8 @@ function renderTrips() {
   if (elSavDiesel) elSavDiesel.textContent = `${totalSavingsDiesel.toFixed(2)}€`;
   if (elEff) elEff.textContent = `${avgKwh100km.toFixed(1)} kWh`;
   if (elWh) elWh.textContent = avgWh;
-  if (elEqGas) elEqGas.textContent = `${eqLitersGas100.toFixed(1)} L`;
-  if (elEqDiesel) elEqDiesel.textContent = `${eqLitersDiesel100.toFixed(1)} L`;
+  if (elRealRange) elRealRange.textContent = `${estimatedRealRange100} km`;
+  if (elBatteryFill) elBatteryFill.style.width = `${rangeFillPct}%`;
   if (elCo2) elCo2.textContent = `${co2AvoidedKg.toFixed(1)} kg`;
   if (elCo2Fact) elCo2Fact.textContent = getRandomCo2Fact(co2AvoidedKg);
   if (elOdoBase) elOdoBase.textContent = `${STATE.vehicle.odometer.toLocaleString('es-ES')} km`;

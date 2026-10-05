@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v21-trip-period-filters-and-accumulation';
+const CACHE = 'biguaydi-v22-real-range-gauge-on-efficiency-card';
 const ASSETS = [
   './',
   './index.html',
