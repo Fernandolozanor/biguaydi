@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v30-real-monthly-savings-no-fictitious';
+const CACHE = 'biguaydi-v31-hide-traction-fix-trip-sorting';
 const ASSETS = [
   './',
   './index.html',

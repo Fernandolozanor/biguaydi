@@ -430,6 +430,49 @@ export function getRandomCo2Fact(kg) {
   return facts[currentCo2FactIndex];
 }
 
+export function getTripTimestamp(trip) {
+  if (!trip) return 0;
+  if (trip.timestamp && !isNaN(Number(trip.timestamp))) {
+    return Number(trip.timestamp);
+  }
+  if (typeof trip.id === 'number' && trip.id > 1600000000000) {
+    return trip.id;
+  }
+  if (typeof trip.date === 'string') {
+    const raw = trip.date.trim();
+    const dLower = raw.toLowerCase();
+
+    // Check for HH:mm in string, e.g. "Hoy, 18:13", "Ayer, 21:00", "05 Oct, 14:30"
+    let hours = 12;
+    let minutes = 0;
+    const timeMatch = raw.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      hours = parseInt(timeMatch[1], 10);
+      minutes = parseInt(timeMatch[2], 10);
+    }
+
+    const now = new Date();
+    if (dLower.includes('hoy')) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
+      return d.getTime();
+    }
+    if (dLower.includes('ayer')) {
+      const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      const d = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), hours, minutes, 0, 0);
+      return d.getTime();
+    }
+
+    // Try parsing date string like "2026-10-05" or "02 Oct"
+    const parsed = Date.parse(raw);
+    if (!isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  // Fallback: use numeric id or 0
+  return Number(trip.id) || 0;
+}
+
 function isTripInPeriod(trip, period) {
   if (!period || period === 'all') return true;
 
@@ -438,31 +481,7 @@ function isTripInPeriod(trip, period) {
   const weekStart = todayStart - (6 * 24 * 60 * 60 * 1000); // last 7 days
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
-  // Try parsing trip timestamp or ID (Date.now())
-  let tripTime = null;
-  if (trip.timestamp) {
-    tripTime = Number(trip.timestamp);
-  } else if (typeof trip.id === 'number' && trip.id > 1600000000000) {
-    tripTime = trip.id;
-  } else if (typeof trip.date === 'string') {
-    const dLower = trip.date.toLowerCase();
-    if (dLower.includes('hoy')) {
-      tripTime = Date.now();
-    } else if (dLower.includes('ayer')) {
-      tripTime = Date.now() - (24 * 60 * 60 * 1000);
-    } else {
-      // Try parsing formats like "02 Oct" or "2026-10-02"
-      const parsed = Date.parse(trip.date);
-      if (!isNaN(parsed)) {
-        tripTime = parsed;
-      }
-    }
-  }
-
-  // Fallback: If trip time couldn't be parsed, treat as recent
-  if (!tripTime) {
-    tripTime = Date.now() - (2 * 24 * 60 * 60 * 1000);
-  }
+  const tripTime = getTripTimestamp(trip);
 
   if (period === 'today') return tripTime >= todayStart;
   if (period === 'week') return tripTime >= weekStart;
@@ -640,11 +659,11 @@ function renderTrips() {
   // Sorting logic
   const sortMode = STATE.tripSort || 'recent';
   if (sortMode === 'oldest') {
-    // Reverse original order: oldest first (lower id/index first)
-    filtered.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+    // Oldest first (lowest timestamp first)
+    filtered.sort((a, b) => getTripTimestamp(a) - getTripTimestamp(b));
   } else if (sortMode === 'recent') {
-    // Highest id first (most recent)
-    filtered.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+    // Most recent first (highest timestamp first)
+    filtered.sort((a, b) => getTripTimestamp(b) - getTripTimestamp(a));
   } else if (sortMode === 'dist-desc') {
     filtered.sort((a, b) => b.distance - a.distance);
   } else if (sortMode === 'dist-asc') {
@@ -1321,17 +1340,21 @@ function initAutoTripRecorder() {
         const energy = Number(((dist * wh) / 1000).toFixed(2));
         const cat = document.getElementById('edit-trip-category')?.value || 'trabajo';
 
-        STATE.trips[tripIndex] = {
+        const rawDate = document.getElementById('edit-trip-date').value.trim() || 'Hoy';
+        const updatedTrip = {
           ...STATE.trips[tripIndex],
           title: document.getElementById('edit-trip-title').value.trim() || 'Ruta',
           category: cat,
-          date: document.getElementById('edit-trip-date').value.trim() || 'Hoy',
+          date: rawDate,
           distance: dist,
           avgWh: wh,
           energy: energy,
           duration: document.getElementById('edit-trip-duration').value.trim() || `${Math.round(dist * 1.5)} min`,
           isNew: false
         };
+        updatedTrip.timestamp = getTripTimestamp(updatedTrip);
+
+        STATE.trips[tripIndex] = updatedTrip;
 
         localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
         renderTrips();
