@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v18-trip-sort-and-spacious-cards';
+const CACHE = 'biguaydi-v19-high-contrast-kpi-and-elastic-curiosity';
 const ASSETS = [
   './',
   './index.html',
