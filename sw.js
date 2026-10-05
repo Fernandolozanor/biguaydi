@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v25-real-range-vs-homologated-wltp';
+const CACHE = 'biguaydi-v26-turquoise-and-dark-blue-split-bar';
 const ASSETS = [
   './',
   './index.html',
