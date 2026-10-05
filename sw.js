@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v15-fixed-header-always-visible';
+const CACHE = 'biguaydi-v16-rich-trip-kpis-co2-curiosities';
 const ASSETS = [
   './',
   './index.html',

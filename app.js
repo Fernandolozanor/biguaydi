@@ -373,6 +373,31 @@ function renderVehicleHUD() {
   setEl('hud-tire-rr', `${v.tires.rr} bar`);
 }
 
+let currentCo2FactIndex = -1;
+
+export function getRandomCo2Fact(kg) {
+  const val = Math.max(0.5, kg);
+  const stoveHours = Math.max(1, Math.round(val / 0.5));
+  const washCycles = Math.max(1, Math.round(val / 0.65));
+  const phonesCharged = Math.max(10, Math.round(val / 0.008));
+  const treeDays = Math.max(1, Math.round((val / 21) * 365));
+  const tvHours = Math.max(1, Math.round(val / 0.04));
+  const flightKm = Math.max(1, Math.round(val / 0.15));
+
+  const facts = [
+    `Equivale a una estufa de 2.000W encendida durante ${stoveHours} horas.`,
+    `Equivale a evitar el gasto de ${washCycles} lavadoras con agua caliente.`,
+    `Equivale a cargar la batería de tu móvil ${phonesCharged.toLocaleString('es-ES')} veces.`,
+    `Equivale al CO₂ que absorbe un pino mediterráneo durante ${treeDays} días.`,
+    `Equivale a tener una Smart TV encendida durante ${tvHours} horas seguidas.`,
+    `Equivale a las emisiones de un pasajero en avión durante ${flightKm} km.`
+  ];
+
+  // Rotate to a different fact each time
+  currentCo2FactIndex = (currentCo2FactIndex + 1 + Math.floor(Math.random() * (facts.length - 1))) % facts.length;
+  return facts[currentCo2FactIndex];
+}
+
 // --- TRIPS RENDER, KPIS & IMPACTFUL CHART ---
 function renderTrips() {
   const container = document.getElementById('trips-list');
@@ -407,26 +432,42 @@ function renderTrips() {
   const avgKwh100km = totalDistance > 0 ? ((totalEnergy / totalDistance) * 100) : 0;
   const avgWh = totalDistance > 0 ? Math.round((totalEnergy * 1000) / totalDistance) : 0;
   const co2AvoidedKg = (totalDistance * 104) / 1000;
+  const avgDistPerTrip = STATE.trips.length > 0 ? (totalDistance / STATE.trips.length) : 0;
+
+  // Thermal fuel liters required to produce the same financial expense
+  const costEv100 = totalDistance > 0 ? ((totalCostEv / totalDistance) * 100) : (avgKwh100km * costPerKwh);
+  const eqLitersGas100 = gasPrice > 0 ? (costEv100 / gasPrice) : 0;
+  const eqLitersDiesel100 = dieselPrice > 0 ? (costEv100 / dieselPrice) : 0;
 
   // Update KPI DOM elements
   const elDist = document.getElementById('kpi-trip-distance');
   const elCount = document.getElementById('kpi-trip-count');
+  const elAvgDist = document.getElementById('kpi-trip-avg-dist');
   const elSavings = document.getElementById('kpi-trip-savings');
+  const elTotalCost = document.getElementById('kpi-trip-total-cost');
   const elSavGas = document.getElementById('kpi-trip-sav-gas');
   const elSavDiesel = document.getElementById('kpi-trip-sav-diesel');
   const elEff = document.getElementById('kpi-trip-efficiency');
   const elWh = document.getElementById('kpi-trip-wh');
+  const elEqGas = document.getElementById('kpi-trip-eq-gas');
+  const elEqDiesel = document.getElementById('kpi-trip-eq-diesel');
   const elCo2 = document.getElementById('kpi-trip-co2');
+  const elCo2Fact = document.getElementById('kpi-trip-co2-fact');
   const elOdoBase = document.getElementById('recorder-base-odo');
 
   if (elDist) elDist.textContent = `${totalDistance.toFixed(1)} km`;
   if (elCount) elCount.textContent = STATE.trips.length;
+  if (elAvgDist) elAvgDist.textContent = `${avgDistPerTrip.toFixed(1)} km`;
   if (elSavings) elSavings.textContent = `${totalSavingsGas.toFixed(2)} €`;
+  if (elTotalCost) elTotalCost.textContent = `${totalCostEv.toFixed(2)} €`;
   if (elSavGas) elSavGas.textContent = `${totalSavingsGas.toFixed(2)}€`;
   if (elSavDiesel) elSavDiesel.textContent = `${totalSavingsDiesel.toFixed(2)}€`;
   if (elEff) elEff.textContent = `${avgKwh100km.toFixed(1)} kWh`;
   if (elWh) elWh.textContent = avgWh;
+  if (elEqGas) elEqGas.textContent = `${eqLitersGas100.toFixed(1)} L`;
+  if (elEqDiesel) elEqDiesel.textContent = `${eqLitersDiesel100.toFixed(1)} L`;
   if (elCo2) elCo2.textContent = `${co2AvoidedKg.toFixed(1)} kg`;
+  if (elCo2Fact) elCo2Fact.innerHTML = `🍃 ${getRandomCo2Fact(co2AvoidedKg)}`;
   if (elOdoBase) elOdoBase.textContent = `${STATE.vehicle.odometer.toLocaleString('es-ES')} km`;
 
   // 2. Filter Trips by Active Category
@@ -735,6 +776,20 @@ function initAutoTripRecorder() {
       if (!chip) return;
       STATE.selectedTripCategory = chip.dataset.category || 'all';
       renderTrips();
+    });
+  }
+
+  // Interactive CO2 curiosity rotation on tap
+  const btnCo2Card = document.getElementById('btn-next-co2-fact');
+  if (btnCo2Card) {
+    btnCo2Card.addEventListener('click', () => {
+      const elCo2Fact = document.getElementById('kpi-trip-co2-fact');
+      if (elCo2Fact) {
+        let totalDistance = 0;
+        STATE.trips.forEach(t => totalDistance += t.distance);
+        const co2AvoidedKg = (totalDistance * 104) / 1000;
+        elCo2Fact.innerHTML = `🍃 ${getRandomCo2Fact(co2AvoidedKg)}`;
+      }
     });
   }
 
