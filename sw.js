@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v14-traction-gear-live';
+const CACHE = 'biguaydi-v15-fixed-header-always-visible';
 const ASSETS = [
   './',
   './index.html',
