@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v33-fix-trip-chronological-sorting-priority';
+const CACHE = 'biguaydi-v34-daylight-hours-by-season';
 const ASSETS = [
   './',
   './index.html',

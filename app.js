@@ -399,12 +399,25 @@ function updateCalculations() {
 
 // --- RENDER HIGH-TECH SOLAR HOME SCHEME ---
 export function renderSolarHomeScheme() {
-  const effectiveSeason = (STATE.solarSeason === 'auto')
+  const isAuto = (STATE.solarSeason === 'auto');
+  const effectiveSeason = isAuto
     ? getSeasonFromDate(new Date())
     : (STATE.solarSeason || 'summer');
 
   const loc = STATE.solarLocation || { lat: 40.4168, lon: -3.7038, name: 'Madrid' };
-  const daylightHours = calculateDaylightHours(new Date(), loc.lat);
+
+  // Representative dates for each season to reflect daylight variation across seasons:
+  // Summer solstice (~June 21), Spring equinox (~March 21), Autumn equinox (~Sept 22), Winter solstice (~Dec 21)
+  const currentYear = new Date().getFullYear();
+  const seasonDates = {
+    spring: new Date(currentYear, 2, 21), // 21 March
+    summer: new Date(currentYear, 5, 21), // 21 June
+    autumn: new Date(currentYear, 8, 22), // 22 September
+    winter: new Date(currentYear, 11, 21) // 21 December
+  };
+
+  const evalDate = isAuto ? new Date() : (seasonDates[effectiveSeason] || new Date());
+  const daylightHours = calculateDaylightHours(evalDate, loc.lat);
   const seasonalPct = getSeasonalSolarPct(effectiveSeason);
 
   // Update text badges
