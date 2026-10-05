@@ -467,8 +467,36 @@ function renderTrips() {
   if (elEqGas) elEqGas.textContent = `${eqLitersGas100.toFixed(1)} L`;
   if (elEqDiesel) elEqDiesel.textContent = `${eqLitersDiesel100.toFixed(1)} L`;
   if (elCo2) elCo2.textContent = `${co2AvoidedKg.toFixed(1)} kg`;
-  if (elCo2Fact) elCo2Fact.innerHTML = `🍃 ${getRandomCo2Fact(co2AvoidedKg)}`;
+  if (elCo2Fact) elCo2Fact.textContent = getRandomCo2Fact(co2AvoidedKg);
   if (elOdoBase) elOdoBase.textContent = `${STATE.vehicle.odometer.toLocaleString('es-ES')} km`;
+
+  // Dynamic update of mini split cost/savings bar ratio
+  const totalComb = totalCostEv + totalSavingsGas;
+  if (totalComb > 0) {
+    const costPct = Math.max(10, Math.min(90, Math.round((totalCostEv / totalComb) * 100)));
+    const savePct = 100 - costPct;
+    const costSeg = document.querySelector('.trip-mini-split-bar .cost-seg');
+    const saveSeg = document.querySelector('.trip-mini-split-bar .save-seg');
+    if (costSeg && saveSeg) {
+      costSeg.style.width = `${costPct}%`;
+      saveSeg.style.width = `${savePct}%`;
+    }
+  }
+
+  // Dynamic mini bars for distance variation across recent trips
+  const miniBars = document.querySelectorAll('.dist-mini-chart .mini-bar');
+  if (miniBars.length > 0 && STATE.trips.length > 0) {
+    const recentTrips = STATE.trips.slice(0, miniBars.length);
+    const maxRecentDist = Math.max(...recentTrips.map(t => t.distance), 1);
+    miniBars.forEach((bar, bIdx) => {
+      const tripItem = recentTrips[bIdx];
+      if (tripItem) {
+        const heightPct = Math.max(25, Math.round((tripItem.distance / maxRecentDist) * 100));
+        bar.style.height = `${heightPct}%`;
+        bar.title = `${tripItem.distance} km`;
+      }
+    });
+  }
 
   // 2. Filter Trips by Active Category
   const activeCat = STATE.selectedTripCategory || 'all';
@@ -788,7 +816,7 @@ function initAutoTripRecorder() {
         let totalDistance = 0;
         STATE.trips.forEach(t => totalDistance += t.distance);
         const co2AvoidedKg = (totalDistance * 104) / 1000;
-        elCo2Fact.innerHTML = `🍃 ${getRandomCo2Fact(co2AvoidedKg)}`;
+        elCo2Fact.textContent = getRandomCo2Fact(co2AvoidedKg);
       }
     });
   }

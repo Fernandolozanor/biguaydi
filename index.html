@@ -529,45 +529,96 @@
           </div>
 
           <!-- KPIS GRID -->
-          <div class="grid-cols-4" style="margin-bottom:22px;">
-            <div class="tech-panel trip-kpi-card">
-              <span class="overline">DISTANCIA TOTAL</span>
-              <div class="card-data-value" id="kpi-trip-distance" style="margin:6px 0;">119.9 km</div>
-              <p class="card-data-sub"><b id="kpi-trip-count">4</b> trayectos analizados</p>
-              <p class="card-data-sub" style="margin-top:2px; font-size:11.5px; color:var(--text-muted);">
-                Media: <b id="kpi-trip-avg-dist" style="color:var(--text); font-family:var(--mono);">30.0 km</b>/viaje
-              </p>
-            </div>
-
-            <div class="tech-panel trip-kpi-card">
-              <span class="overline">AHORRO ACUMULADO</span>
-              <div class="card-data-value" id="kpi-trip-savings" style="color:var(--accent); margin:6px 0;">9.42 €</div>
-              <p class="card-data-sub" style="font-size:11.5px; margin-bottom:1px;">
-                Gasto total: <b id="kpi-trip-total-cost" style="color:#4ce0d2; font-family:var(--mono);">2.48 €</b>
-              </p>
-              <p class="card-data-sub" style="font-size:11px; color:var(--text-muted);">
-                Vs Gas: <b id="kpi-trip-sav-gas">9.42€</b> · Diésel: <b id="kpi-trip-sav-diesel">7.03€</b>
-              </p>
-            </div>
-
-            <div class="tech-panel trip-kpi-card">
-              <span class="overline">EFICIENCIA MEDIA</span>
-              <div class="card-data-value" id="kpi-trip-efficiency" style="color:var(--accent-secondary); margin:6px 0;">14.5 kWh</div>
-              <p class="card-data-sub">Media en <b id="kpi-trip-wh">145</b> Wh/km</p>
-              <p class="card-data-sub" style="margin-top:2px; font-size:11px; color:var(--text-muted);">
-                Mismo gasto: <b id="kpi-trip-eq-gas" style="color:#ff8c73; font-family:var(--mono);">1.2 L</b> Gas · <b id="kpi-trip-eq-diesel" style="color:#f5cc7f; font-family:var(--mono);">1.3 L</b> Diésel /100km
-              </p>
-            </div>
-
-            <div class="tech-panel trip-kpi-card co2-card" id="btn-next-co2-fact" title="Toca para ver otra equivalencia curiosa">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span class="overline">CO₂ EVITADO</span>
-                <span style="font-size:14px;">🍃</span>
+          <!-- KPIS GRID CON DETALLE Y MINI-GRÁFICOS LATERALES -->
+          <div class="grid-cols-4 trip-kpis-grid" style="margin-bottom:22px;">
+            <!-- 1. DISTANCIA TOTAL -->
+            <div class="tech-panel trip-kpi-card trip-kpi-split">
+              <div class="trip-kpi-main">
+                <span class="overline">DISTANCIA TOTAL</span>
+                <div class="card-data-value" id="kpi-trip-distance" style="margin:4px 0 2px;">119.9 km</div>
+                <p class="card-data-sub"><b id="kpi-trip-count">4</b> trayectos</p>
               </div>
-              <div class="card-data-value" id="kpi-trip-co2" style="color:#52e597; margin:6px 0;">12.5 kg</div>
-              <p class="card-data-sub" id="kpi-trip-co2-fact" style="color:#a8f0c6; font-size:11.5px; line-height:1.35; margin-top:2px;">
-                🍃 Equivale a una estufa de 2.000W encendida durante 25 h.
-              </p>
+              <div class="trip-kpi-side">
+                <div class="trip-kpi-side-badge">
+                  <span class="side-kpi-title">MEDIA / VIAJE</span>
+                  <b class="side-kpi-value" id="kpi-trip-avg-dist">30.0 km</b>
+                </div>
+                <div class="trip-mini-chart dist-mini-chart" title="Rango de distancias por trayecto">
+                  <span class="mini-bar" style="height:35%;"></span>
+                  <span class="mini-bar" style="height:60%;"></span>
+                  <span class="mini-bar" style="height:100%;"></span>
+                  <span class="mini-bar" style="height:45%;"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. AHORRO ACUMULADO -->
+            <div class="tech-panel trip-kpi-card trip-kpi-split">
+              <div class="trip-kpi-main">
+                <span class="overline">AHORRO ACUMULADO</span>
+                <div class="card-data-value" id="kpi-trip-savings" style="color:var(--accent); margin:4px 0 2px;">9.42 €</div>
+                <p class="card-data-sub" style="font-size:11px; color:var(--text-muted);">
+                  Vs Gas <b id="kpi-trip-sav-gas">9.42€</b> · Diésel <b id="kpi-trip-sav-diesel">7.03€</b>
+                </p>
+              </div>
+              <div class="trip-kpi-side">
+                <div class="trip-kpi-side-badge side-badge-cost">
+                  <span class="side-kpi-title">GASTO TOTAL</span>
+                  <b class="side-kpi-value" id="kpi-trip-total-cost" style="color:#4ce0d2;">2.48 €</b>
+                </div>
+                <!-- Mini ratio de ahorro: Gasto vs Ahorro -->
+                <div class="trip-mini-split-bar" title="Proporción Gasto EV vs Ahorro generado">
+                  <div class="mini-split-seg cost-seg" style="width:21%;" title="Gasto EV"></div>
+                  <div class="mini-split-seg save-seg" style="width:79%;" title="Ahorro conseguido"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. EFICIENCIA MEDIA -->
+            <div class="tech-panel trip-kpi-card trip-kpi-split">
+              <div class="trip-kpi-main">
+                <span class="overline">EFICIENCIA MEDIA</span>
+                <div class="card-data-value" id="kpi-trip-efficiency" style="color:var(--accent-secondary); margin:4px 0 2px;">14.5 kWh</div>
+                <p class="card-data-sub">Media: <b id="kpi-trip-wh">145</b> Wh/km</p>
+              </div>
+              <div class="trip-kpi-side">
+                <div class="trip-kpi-side-badge side-badge-thermal">
+                  <span class="side-kpi-title">MISMO COSTE EN LITROS</span>
+                  <div class="side-thermal-liters">
+                    <span class="thermal-item gas"><b id="kpi-trip-eq-gas">1.2 L</b> <small>Gas</small></span>
+                    <span class="thermal-sep">·</span>
+                    <span class="thermal-item diesel"><b id="kpi-trip-eq-diesel">1.3 L</b> <small>Diésel</small></span>
+                  </div>
+                </div>
+                <!-- Mini barra térmica comparativa -->
+                <div class="trip-mini-flame-bar" title="Equivalente en litros por 100km">
+                  <span class="flame-pill gas-pill"></span>
+                  <span class="flame-pill diesel-pill"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. CO2 EVITADO CON CURIOSIDAD DINÁMICA -->
+            <div class="tech-panel trip-kpi-card trip-kpi-split co2-card" id="btn-next-co2-fact" title="Toca la tarjeta para cambiar la curiosidad de CO₂">
+              <div class="trip-kpi-main">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span class="overline">CO₂ EVITADO</span>
+                  <span style="font-size:13px; line-height:1;">🍃</span>
+                </div>
+                <div class="card-data-value" id="kpi-trip-co2" style="color:#52e597; margin:4px 0 2px;">12.5 kg</div>
+                <p class="card-data-sub" style="color:#52e597; opacity:0.85; font-size:11px;">🌱 Emisiones netas cero</p>
+              </div>
+              <div class="trip-kpi-side trip-kpi-side-curiosity">
+                <div class="trip-kpi-curiosity-box">
+                  <div class="curiosity-head">
+                    <span class="curiosity-tag">¿SABÍAS QUE?</span>
+                    <span class="curiosity-refresh-hint">↻</span>
+                  </div>
+                  <p class="card-data-sub curiosity-fact-text" id="kpi-trip-co2-fact">
+                    Equivale a una estufa de 2.000W encendida durante 25 h.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

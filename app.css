@@ -1505,12 +1505,235 @@ body[data-size="5"] {
 }
 
 .trip-kpi-card {
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .trip-kpi-card:hover {
   transform: translateY(-2px);
   border-color: rgba(var(--accent-rgb), 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+/* 2-COLUMN SPLIT LAYOUT FOR TRIP KPIS */
+.trip-kpi-split {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: stretch !important;
+  gap: 12px;
+  padding: 16px 18px !important;
+}
+
+.trip-kpi-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.trip-kpi-side {
+  flex: 0 0 auto;
+  min-width: 110px;
+  max-width: 145px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  text-align: right;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding-left: 12px;
+}
+
+.trip-kpi-side-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.side-kpi-title {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 2px;
+  line-height: 1.1;
+}
+
+.side-kpi-value {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+/* Mini Bar Chart for Distance Card */
+.trip-mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+  width: 100%;
+  max-width: 60px;
+  margin-top: 8px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dist-mini-chart .mini-bar {
+  flex: 1;
+  background: linear-gradient(180deg, var(--accent) 0%, rgba(var(--accent-rgb), 0.25) 100%);
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  box-shadow: 0 0 4px rgba(var(--accent-rgb), 0.3);
+}
+
+/* Mini Split Bar for Cost vs Savings */
+.trip-mini-split-bar {
+  display: flex;
+  height: 6px;
+  width: 100%;
+  max-width: 90px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.mini-split-seg.cost-seg {
+  background: #4ce0d2;
+  box-shadow: 0 0 4px rgba(76, 224, 210, 0.4);
+}
+
+.mini-split-seg.save-seg {
+  background: var(--accent);
+  box-shadow: 0 0 4px rgba(var(--accent-rgb), 0.4);
+}
+
+/* Thermal Equivalent Liters in Efficiency Card */
+.side-thermal-liters {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.side-thermal-liters .thermal-sep {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.thermal-item {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.thermal-item.gas {
+  color: #ff8c73;
+}
+
+.thermal-item.diesel {
+  color: #f5cc7f;
+}
+
+.thermal-item small {
+  font-size: 9.5px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.trip-mini-flame-bar {
+  display: flex;
+  gap: 4px;
+  margin-top: 7px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.trip-mini-flame-bar .flame-pill {
+  height: 4px;
+  border-radius: 2px;
+}
+
+.trip-mini-flame-bar .gas-pill {
+  width: 24px;
+  background: #ff8c73;
+  box-shadow: 0 0 5px rgba(255, 140, 115, 0.4);
+}
+
+.trip-mini-flame-bar .diesel-pill {
+  width: 26px;
+  background: #f5cc7f;
+  box-shadow: 0 0 5px rgba(245, 204, 127, 0.4);
+}
+
+/* CO2 Curiosity Box on Right Side */
+.trip-kpi-side-curiosity {
+  max-width: 175px !important;
+  min-width: 135px !important;
+}
+
+.trip-kpi-curiosity-box {
+  background: rgba(82, 229, 151, 0.08);
+  border: 1px solid rgba(82, 229, 151, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.curiosity-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.curiosity-tag {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #52e597;
+  letter-spacing: 0.8px;
+}
+
+.curiosity-refresh-hint {
+  font-size: 11px;
+  color: #52e597;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.trip-kpi-card:hover .curiosity-refresh-hint {
+  transform: rotate(90deg);
+  opacity: 1;
+}
+
+.curiosity-fact-text {
+  color: #d1fae5 !important;
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.co2-card {
+  cursor: pointer;
 }
 
 /* IMPACTFUL TRIPS CHART */
@@ -2197,4 +2420,23 @@ body[data-size="5"] {
     min-width: unset;
     height: 220px;
   }
+
+  /* Responsive trip KPI cards */
+  .trip-kpi-split {
+    padding: 14px 14px !important;
+    gap: 10px;
+  }
+  .trip-kpi-side {
+    min-width: 95px;
+    max-width: 130px;
+    padding-left: 10px;
+  }
+  .trip-kpi-side-curiosity {
+    min-width: 120px !important;
+    max-width: 160px !important;
+  }
+  .side-kpi-value {
+    font-size: 14px;
+  }
 }
+
