@@ -368,27 +368,61 @@
           </div>
 
           <div class="grid-cols-3" style="margin-bottom:20px;">
-            <div class="tech-panel">
-              <span class="overline">TRACCIÓN & MARCHA</span>
-              <div style="display:flex; justify-content:space-between; margin-top:12px;">
-                <span>Estado actual:</span>
-                <b id="tel-drive-status" style="font-family:var(--mono); color:var(--accent);">Estacionado (P)</b>
+            <div class="tech-panel traction-panel" id="panel-traction">
+              <div class="traction-header">
+                <span class="overline">TRACCIÓN & MARCHA</span>
+                <span class="traction-live-badge" id="tel-live-indicator">
+                  <span class="traction-pulse-dot"></span>
+                  <span id="tel-activity-badge">EN REPOSO</span>
+                </span>
               </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Velocidad:</span>
-                <b id="tel-speed" style="font-family:var(--mono); color:var(--accent);">0 km/h</b>
+
+              <!-- PRND GEAR CLUSTER SELECTOR -->
+              <div class="gear-cluster" id="tel-gear-cluster">
+                <div class="gear-pill active" data-gear="P">P</div>
+                <div class="gear-pill" data-gear="R">R</div>
+                <div class="gear-pill" data-gear="N">N</div>
+                <div class="gear-pill" data-gear="D">D</div>
               </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Potencia / Flujo:</span>
-                <b id="tel-power" style="font-family:var(--mono);">0.0 kW</b>
+
+              <!-- DYNAMIC POWER & FLUX GAUGE BAR -->
+              <div class="power-flux-container">
+                <div class="power-flux-labels">
+                  <span>Regen <small>(-kW)</small></span>
+                  <b id="tel-power-display">0.2 kW</b>
+                  <span>Tracción <small>(+kW)</small></span>
+                </div>
+                <div class="power-flux-track">
+                  <div class="flux-center-mark"></div>
+                  <div class="flux-active-bar" id="tel-flux-bar" style="width:2%; left:50%;"></div>
+                </div>
               </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Modo de marcha:</span>
-                <b id="tel-gear" style="font-family:var(--mono); color:var(--accent-secondary);">P</b>
+
+              <!-- METRICS GRID -->
+              <div class="traction-metrics-list">
+                <div class="traction-metric-row">
+                  <span>Estado actual:</span>
+                  <b id="tel-drive-status" style="color:var(--accent);">Estacionado (P)</b>
+                </div>
+                <div class="traction-metric-row">
+                  <span>Velocidad:</span>
+                  <b id="tel-speed" style="color:var(--accent);">0 km/h · Detenido</b>
+                </div>
+                <div class="traction-metric-row">
+                  <span>Potencia / Flujo:</span>
+                  <b id="tel-power">0.2 kW (Auxiliares)</b>
+                </div>
+                <div class="traction-metric-row">
+                  <span>Modo Conducción:</span>
+                  <b id="tel-drive-mode" style="color:var(--text-muted);">ECO Inteligente</b>
+                </div>
               </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Modo Conducción:</span>
-                <b id="tel-drive-mode" style="font-family:var(--mono); font-size:12px; color:var(--text-muted);">ECO Inteligente</b>
+
+              <!-- INTERACTIVE TEST / SIMULATION CONTROLS -->
+              <div class="traction-card-footer">
+                <button type="button" class="btn-traction-test" id="btn-test-traction" title="Probar respuesta y actividad en tiempo real">
+                  ⚡ Probar Actividad Dinámica
+                </button>
               </div>
             </div>
 

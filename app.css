@@ -542,6 +542,204 @@ body[data-size="5"] {
   background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.3), transparent);
 }
 
+/* TRACCIÓN & MARCHA HIGH TECH PANEL */
+.traction-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.traction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.traction-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-family: var(--mono);
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+}
+
+.traction-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: tractionPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes tractionPulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.6; }
+  50% { transform: scale(1.35); opacity: 1; box-shadow: 0 0 10px var(--accent); }
+}
+
+.gear-cluster {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 6px 0 12px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+}
+
+.gear-pill {
+  flex: 1;
+  max-width: 46px;
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.gear-pill.active {
+  background: var(--accent);
+  color: #040907;
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.55);
+  font-weight: 800;
+  transform: scale(1.04);
+}
+
+.gear-pill.active[data-gear="D"] {
+  background: #4ce0d2;
+  color: #061412;
+  box-shadow: 0 0 14px rgba(76, 224, 210, 0.65);
+}
+
+.gear-pill.active[data-gear="R"] {
+  background: #ff8c73;
+  color: #1c0602;
+  box-shadow: 0 0 14px rgba(255, 140, 115, 0.65);
+}
+
+.power-flux-container {
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.power-flux-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.power-flux-labels b {
+  font-size: 13px;
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.power-flux-track {
+  position: relative;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.flux-center-mark {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.35);
+  z-index: 2;
+}
+
+.flux-active-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.25s ease, left 0.25s ease, background 0.25s ease;
+}
+
+.traction-metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.traction-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.traction-metric-row span {
+  color: var(--text-muted);
+}
+
+.traction-metric-row b {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.traction-card-footer {
+  display: flex;
+  margin-top: auto;
+}
+
+.btn-traction-test {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--sans);
+  border-radius: 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.btn-traction-test:hover {
+  background: rgba(var(--accent-rgb), 0.22);
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
+}
+
+.btn-traction-test:active {
+  transform: translateY(0);
+}
+
 /* COMPACT HIGH-TECH HERO OVERVIEW */
 .hero-hud-card.compact-overview {
   display: grid;

@@ -308,11 +308,52 @@ function renderVehicleHUD() {
     if (el) el.textContent = val;
   };
 
+  const isDriving = v.speed > 0 || (v.gear === 'D' && Math.abs(v.power) > 0.5);
+  const isCharging = Boolean(v.charging);
+  const isRegen = v.power < 0;
+
+  let activityText = 'EN REPOSO';
+  if (isCharging) activityText = '⚡ CARGANDO';
+  else if (isDriving) activityText = isRegen ? '🌱 REGEN ACTIVA' : '⚡ TRACCIÓN ACTIVA';
+
+  setEl('tel-activity-badge', activityText);
   setEl('tel-drive-status', v.driveStatus || `Estacionado (${v.gear})`);
   setEl('tel-speed', `${v.speed} km/h${v.speed === 0 ? ' · Detenido' : ''}`);
-  setEl('tel-power', `${v.power > 0 ? '+' : ''}${v.power.toFixed(1)} kW${v.charging ? ' (Carga)' : (v.speed > 0 ? ' (Tracción)' : ' (Reposo)')}`);
+
+  const powerDisplayStr = `${v.power > 0 ? '+' : ''}${v.power.toFixed(1)} kW`;
+  setEl('tel-power-display', powerDisplayStr);
+  setEl('tel-power', `${powerDisplayStr} ${isCharging ? '(Carga)' : (v.speed > 0 ? (isRegen ? '(Regeneración)' : '(Tracción)') : '(Auxiliares 12V/BMS)')}`);
   setEl('tel-gear', v.gear);
   setEl('tel-drive-mode', v.driveMode || 'ECO Inteligente');
+
+  // Gear cluster PRND highlighting
+  const gearPills = document.querySelectorAll('#tel-gear-cluster .gear-pill');
+  gearPills.forEach(p => {
+    p.classList.toggle('active', p.dataset.gear === v.gear);
+  });
+
+  // Power flux bar calculation (center = 50%)
+  const fluxBar = document.getElementById('tel-flux-bar');
+  if (fluxBar) {
+    if (isCharging) {
+      const pct = Math.min(48, Math.max(8, (Math.abs(v.power) / 60) * 48));
+      fluxBar.style.left = '50%';
+      fluxBar.style.width = `${pct}%`;
+      fluxBar.style.background = 'linear-gradient(90deg, #ffd700, #ff8c73)';
+    } else if (v.power >= 0) {
+      const pct = Math.min(48, (v.power / 60) * 48);
+      fluxBar.style.left = '50%';
+      fluxBar.style.width = `${Math.max(2, pct)}%`;
+      fluxBar.style.background = 'linear-gradient(90deg, #4ce0d2, #6db6ff)';
+    } else {
+      // Regen
+      const pct = Math.min(48, (Math.abs(v.power) / 40) * 48);
+      fluxBar.style.left = `${50 - pct}%`;
+      fluxBar.style.width = `${pct}%`;
+      fluxBar.style.background = 'linear-gradient(90deg, #38ef7d, #11998e)';
+    }
+  }
+
   setEl('tel-soh', `${v.soh.toFixed(1)}%`);
   setEl('tel-volt-hv', `${v.voltageHV.toFixed(1)} V`);
   setEl('tel-volt-12v', `${v.voltage12v.toFixed(1)} V`);
@@ -1024,6 +1065,123 @@ function initSecurityVault() {
   updateVaultState();
 }
 
+// --- LIVE TRACTION & GEAR TELEMETRY MONITOR ---
+function initTractionMonitor() {
+  const btnTest = document.getElementById('btn-test-traction');
+  const gearPills = document.querySelectorAll('#tel-gear-cluster .gear-pill');
+
+  // 1. Interactive PRND Cluster selector clicks
+  gearPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      const g = pill.dataset.gear;
+      if (!g) return;
+      STATE.vehicle.gear = g;
+      if (g === 'P') {
+        STATE.vehicle.speed = 0;
+        STATE.vehicle.power = 0.2;
+        STATE.vehicle.driveStatus = 'Estacionado (P)';
+      } else if (g === 'D') {
+        if (STATE.vehicle.speed === 0) STATE.vehicle.speed = 22;
+        STATE.vehicle.power = 9.4;
+        STATE.vehicle.driveStatus = `En Marcha (${STATE.vehicle.speed} km/h · Tracción)`;
+      } else if (g === 'R') {
+        STATE.vehicle.speed = 7;
+        STATE.vehicle.power = 3.6;
+        STATE.vehicle.driveStatus = 'Marcha Atrás (R)';
+      } else if (g === 'N') {
+        STATE.vehicle.speed = 0;
+        STATE.vehicle.power = 0.1;
+        STATE.vehicle.driveStatus = 'Punto Muerto (N)';
+      }
+      renderVehicleHUD();
+      localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
+    });
+  });
+
+  // 2. Interactive Dynamic Drive Simulation button on the card
+  if (btnTest) {
+    btnTest.addEventListener('click', () => {
+      if (btnTest.disabled) return;
+      btnTest.disabled = true;
+      btnTest.textContent = '⏳ Simulando aceleración...';
+
+      // Stage 1 (0ms): Gear to D, initial acceleration
+      STATE.vehicle.gear = 'D';
+      STATE.vehicle.speed = 16;
+      STATE.vehicle.power = 9.8;
+      STATE.vehicle.driveStatus = 'Iniciando Marcha (D)';
+      STATE.vehicle.driveMode = 'ECO Inteligente';
+      renderVehicleHUD();
+
+      // Stage 2 (1100ms): Active power & speed climb
+      setTimeout(() => {
+        btnTest.textContent = '⚡ Tracción en marcha...';
+        STATE.vehicle.speed = 52;
+        STATE.vehicle.power = 28.4;
+        STATE.vehicle.driveStatus = 'En Marcha (52 km/h · Tracción)';
+        STATE.vehicle.driveMode = 'SPORT Dinámico';
+        renderVehicleHUD();
+      }, 1100);
+
+      // Stage 3 (2400ms): High-speed cruise
+      setTimeout(() => {
+        btnTest.textContent = '🚀 Velocidad de crucero...';
+        STATE.vehicle.speed = 78;
+        STATE.vehicle.power = 42.1;
+        STATE.vehicle.driveStatus = 'En Marcha (78 km/h · Tracción Alta)';
+        renderVehicleHUD();
+      }, 2400);
+
+      // Stage 4 (3700ms): Regenerative Braking (Green flow)
+      setTimeout(() => {
+        btnTest.textContent = '🌱 Frenada Regenerativa...';
+        STATE.vehicle.speed = 36;
+        STATE.vehicle.power = -16.8;
+        STATE.vehicle.driveStatus = 'Frenada Regenerativa (-16.8 kW)';
+        renderVehicleHUD();
+      }, 3700);
+
+      // Stage 5 (5000ms): Smooth stop & restore to Park
+      setTimeout(() => {
+        STATE.vehicle.speed = 0;
+        STATE.vehicle.gear = 'P';
+        STATE.vehicle.power = 0.2;
+        STATE.vehicle.driveStatus = 'Estacionado (P)';
+        STATE.vehicle.driveMode = 'ECO Inteligente';
+        renderVehicleHUD();
+        localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
+
+        btnTest.disabled = false;
+        btnTest.textContent = '⚡ Probar Actividad Dinámica';
+        showToast('✓ Actividad de tracción, marcha y regeneración probada');
+      }, 5000);
+    });
+  }
+
+  // 3. Live Standby Heartbeat (BMS & 12V auxiliary monitoring pulse every 2.5s)
+  setInterval(() => {
+    // Only update auxiliary standby load when parked at 0 km/h so we never overwrite driving telemetry
+    if (STATE.vehicle.gear === 'P' && STATE.vehicle.speed === 0 && !STATE.vehicle.charging) {
+      const baseAux = 0.20;
+      const variation = Math.sin(Date.now() / 1800) * 0.06;
+      const currentPower = Number(Math.max(0.12, baseAux + variation).toFixed(2));
+      STATE.vehicle.power = currentPower;
+
+      const elPowerDisp = document.getElementById('tel-power-display');
+      const elPower = document.getElementById('tel-power');
+      const fluxBar = document.getElementById('tel-flux-bar');
+
+      if (elPowerDisp) elPowerDisp.textContent = `+${currentPower.toFixed(2)} kW`;
+      if (elPower) elPower.textContent = `+${currentPower.toFixed(2)} kW (Auxiliares 12V/BMS)`;
+      if (fluxBar) {
+        fluxBar.style.left = '50%';
+        fluxBar.style.width = '2.5%';
+        fluxBar.style.background = 'linear-gradient(90deg, #4ce0d2, #6db6ff)';
+      }
+    }
+  }, 2500);
+}
+
 // --- TOP BAR SYNC STATUS BADGE ---
 export function updateTopSyncBadge(status, customText) {
   const badge = document.getElementById('top-sync-badge');
@@ -1182,6 +1340,7 @@ export function initApp() {
   renderTrips();
   initAutoTripRecorder();
   initSecurityVault();
+  initTractionMonitor();
 
   // Top sync badge click listener (quick sync from anywhere)
   const topSyncBadge = document.getElementById('top-sync-badge');
