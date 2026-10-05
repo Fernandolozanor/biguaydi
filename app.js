@@ -863,6 +863,10 @@ function renderTripsChart() {
     const yDiesel = padT + (plotH - hDiesel);
     const yEv = padT + (plotH - hEv);
 
+    const whNorm = (d.wh - minWh) / Math.max(1, maxWh - minWh);
+    const yWh = padT + (plotH - (whNorm * (plotH * 0.6) + (plotH * 0.2)));
+    linePoints.push({ x: cx, y: yWh, val: d.wh });
+
     // Anti-collision algorithm between Wh dashed line/circle and bar price labels
     const collisionDist = 18; // px threshold for collision
 

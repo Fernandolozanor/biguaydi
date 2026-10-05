@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v27-chart-label-collision-prevention';
+const CACHE = 'biguaydi-v28-restore-trip-cards-and-chart-fix';
 const ASSETS = [
   './',
   './index.html',
