@@ -371,16 +371,24 @@
             <div class="tech-panel">
               <span class="overline">TRACCIÓN & MARCHA</span>
               <div style="display:flex; justify-content:space-between; margin-top:12px;">
+                <span>Estado actual:</span>
+                <b id="tel-drive-status" style="font-family:var(--mono); color:var(--accent);">Estacionado (P)</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
                 <span>Velocidad:</span>
                 <b id="tel-speed" style="font-family:var(--mono); color:var(--accent);">0 km/h</b>
               </div>
               <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Potencia motor:</span>
+                <span>Potencia / Flujo:</span>
                 <b id="tel-power" style="font-family:var(--mono);">0.0 kW</b>
               </div>
               <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Marcha:</span>
+                <span>Modo de marcha:</span>
                 <b id="tel-gear" style="font-family:var(--mono); color:var(--accent-secondary);">P</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span>Modo Conducción:</span>
+                <b id="tel-drive-mode" style="font-family:var(--mono); font-size:12px; color:var(--text-muted);">ECO Inteligente</b>
               </div>
             </div>
 
@@ -537,6 +545,16 @@
           <div class="view-header" style="margin-top:28px; margin-bottom:14px;">
             <span class="overline">REGISTRO CRONOLÓGICO</span>
             <h3>Detalle de Trayectos</h3>
+          </div>
+
+          <!-- CATEGORY FILTER CHIPS -->
+          <div class="trip-category-filter-row" id="trip-category-filters">
+            <button class="trip-filter-chip active" data-category="all" type="button">Todos</button>
+            <button class="trip-filter-chip" data-category="trabajo" type="button">💼 Trabajo</button>
+            <button class="trip-filter-chip" data-category="compras" type="button">🛒 Compras</button>
+            <button class="trip-filter-chip" data-category="chofer" type="button">👔 Chófer</button>
+            <button class="trip-filter-chip" data-category="ocio" type="button">🏖️ Ocio</button>
+            <button class="trip-filter-chip" data-category="personal" type="button">🏠 Personal</button>
           </div>
 
           <div id="trips-list">
@@ -722,6 +740,19 @@
           <label for="edit-trip-title">Nombre / Descripción de la ruta:</label>
           <div class="calc-input-wrapper">
             <input type="text" id="edit-trip-title" required placeholder="Ej: Trabajo ➔ Casa">
+          </div>
+        </div>
+
+        <div class="calc-control-group">
+          <label for="edit-trip-category">Categoría del viaje:</label>
+          <div class="calc-input-wrapper">
+            <select id="edit-trip-category" style="width:100%; background:transparent; border:none; color:var(--text); font-family:var(--sans); font-size:14px; outline:none; cursor:pointer;">
+              <option value="trabajo" style="background:#0b1813; color:#fff;">💼 Trabajo</option>
+              <option value="compras" style="background:#0b1813; color:#fff;">🛒 Compras</option>
+              <option value="chofer" style="background:#0b1813; color:#fff;">👔 Chófer</option>
+              <option value="ocio" style="background:#0b1813; color:#fff;">🏖️ Ocio / Escapada</option>
+              <option value="personal" style="background:#0b1813; color:#fff;">🏠 Personal</option>
+            </select>
           </div>
         </div>
 

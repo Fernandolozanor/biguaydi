@@ -18,33 +18,43 @@ const STATE = {
     fuelType: localStorage.getItem('biguaydi-fuel-type') || 'gas95', // gas95 or diesel
     date: localStorage.getItem('biguaydi-prices-date') || new Date().toLocaleDateString('es-ES')
   },
-  // Default real or sample metrics for Dolphin Surf
-  vehicle: {
-    soc: 78,
-    range: 312,
-    odometer: 14280,
-    speed: 0,
-    power: 0.0,
-    charging: false,
-    gear: 'P',
-    tempCabin: 21.5,
-    tempExt: 19.0,
-    soh: 99.2,
-    voltageHV: 348.5,
-    voltage12v: 13.6,
-    avgConsumption50km: 13.8, // kWh/100km
-    lifetimeConsumption: 14.2, // kWh/100km
-    tires: { fl: 2.5, fr: 2.5, rl: 2.6, rr: 2.6 }
-  },
+  selectedTripCategory: 'all',
+  // Loaded from cache or default values for Dolphin Surf
+  vehicle: (function() {
+    try {
+      const saved = localStorage.getItem('biguaydi-vehicle');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return {
+      soc: 78,
+      range: 312,
+      odometer: 14280,
+      speed: 0,
+      power: 0.0,
+      charging: false,
+      gear: 'P',
+      driveStatus: 'Estacionado (P)',
+      driveMode: 'ECO Inteligente',
+      tempCabin: 21.5,
+      tempExt: 19.0,
+      soh: 99.2,
+      voltageHV: 348.5,
+      voltage12v: 13.6,
+      avgConsumption50km: 13.8, // kWh/100km
+      lifetimeConsumption: 14.2, // kWh/100km
+      tires: { fl: 2.5, fr: 2.5, rl: 2.6, rr: 2.6 }
+    };
+  })(),
   trips: (function() {
     try {
       const saved = localStorage.getItem('biguaydi-trips');
-      return saved ? JSON.parse(saved) : [
-        { id: 1, title: 'Trabajo ➔ Casa', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
-        { id: 2, title: 'Casa ➔ Gimnasio', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
-        { id: 3, title: 'Madrid ➔ Toledo', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
-        { id: 4, title: 'Recados urbanos', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
+      const list = saved ? JSON.parse(saved) : [
+        { id: 1, title: 'Trabajo ➔ Casa', category: 'trabajo', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
+        { id: 2, title: 'Casa ➔ Gimnasio', category: 'personal', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
+        { id: 3, title: 'Ruta Clientes Centro', category: 'chofer', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
+        { id: 4, title: 'Compras & Supermercado', category: 'compras', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
       ];
+      return list.map(t => ({ category: 'trabajo', ...t }));
     } catch (_) {
       return [];
     }
@@ -53,6 +63,14 @@ const STATE = {
     lastOdometer: Number(localStorage.getItem('biguaydi-recorder-odo')) || 14280,
     status: 'Activo'
   }
+};
+
+export const TRIP_CATEGORIES = {
+  trabajo: { label: 'Trabajo', icon: '💼', color: '#6db6ff' },
+  compras: { label: 'Compras', icon: '🛒', color: '#ffb347' },
+  chofer: { label: 'Chófer', icon: '👔', color: '#c7f36b' },
+  ocio: { label: 'Ocio', icon: '🏖️', color: '#ff7597' },
+  personal: { label: 'Personal', icon: '🏠', color: '#b388ff' }
 };
 
 // Car images corresponding to themes
@@ -151,6 +169,8 @@ function setFontSize(level) {
   const label = document.getElementById('font-size-display');
   if (slider) slider.value = level;
   if (label) label.textContent = `${level} / 5`;
+  renderTripsChart();
+  updateCalculations();
 }
 
 // --- CALCULATIONS: ELECTRICITY VS PETROL ---
@@ -288,9 +308,11 @@ function renderVehicleHUD() {
     if (el) el.textContent = val;
   };
 
-  setEl('tel-speed', `${v.speed} km/h`);
-  setEl('tel-power', `${v.power > 0 ? '+' : ''}${v.power.toFixed(1)} kW`);
+  setEl('tel-drive-status', v.driveStatus || `Estacionado (${v.gear})`);
+  setEl('tel-speed', `${v.speed} km/h${v.speed === 0 ? ' · Detenido' : ''}`);
+  setEl('tel-power', `${v.power > 0 ? '+' : ''}${v.power.toFixed(1)} kW${v.charging ? ' (Carga)' : (v.speed > 0 ? ' (Tracción)' : ' (Reposo)')}`);
   setEl('tel-gear', v.gear);
+  setEl('tel-drive-mode', v.driveMode || 'ECO Inteligente');
   setEl('tel-soh', `${v.soh.toFixed(1)}%`);
   setEl('tel-volt-hv', `${v.voltageHV.toFixed(1)} V`);
   setEl('tel-volt-12v', `${v.voltage12v.toFixed(1)} V`);
@@ -366,30 +388,44 @@ function renderTrips() {
   if (elCo2) elCo2.textContent = `${co2AvoidedKg.toFixed(1)} kg`;
   if (elOdoBase) elOdoBase.textContent = `${STATE.vehicle.odometer.toLocaleString('es-ES')} km`;
 
-  // 2. Render List of Trip Cards
-  if (STATE.trips.length === 0) {
+  // 2. Filter Trips by Active Category
+  const activeCat = STATE.selectedTripCategory || 'all';
+  const chips = document.querySelectorAll('#trip-category-filters .trip-filter-chip');
+  chips.forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.category === activeCat);
+  });
+
+  const displayedTrips = activeCat === 'all'
+    ? STATE.trips
+    : STATE.trips.filter(t => (t.category || 'trabajo') === activeCat);
+
+  // Render List of Trip Cards
+  if (displayedTrips.length === 0) {
     container.innerHTML = `
       <div style="text-align:center; padding:36px 20px; color:var(--text-muted); background:var(--panel-card); border:1px solid var(--panel-border); border-radius:var(--radius-sm);">
         <span style="font-size:32px; display:block; margin-bottom:8px;">🚗</span>
-        <b>Sin trayectos registrados todavía</b>
-        <p style="font-size:12.5px; margin-top:4px;">Pulsa en "Simular y Probar Trayecto" o sincroniza con tu coche para registrar automáticamente.</p>
+        <b>Sin trayectos en esta categoría</b>
+        <p style="font-size:12.5px; margin-top:4px;">${activeCat === 'all' ? 'Pulsa en "Simular y Probar Trayecto" o sincroniza con tu coche para registrar automáticamente.' : 'No hay viajes categorizados como ' + (TRIP_CATEGORIES[activeCat]?.label || activeCat) + '.'}</p>
       </div>
     `;
   } else {
-    container.innerHTML = STATE.trips.map(trip => {
+    container.innerHTML = displayedTrips.map((trip, idx) => {
       const tripCostEv = trip.energy * costPerKwh;
       const tripCostGas = (trip.distance / 100) * iceCons * gasPrice;
       const tripCostDiesel = (trip.distance / 100) * dieselCons * dieselPrice;
       const tripSavingsGas = Math.max(0, tripCostGas - tripCostEv);
       const tripSavingsDiesel = Math.max(0, tripCostDiesel - tripCostEv);
+      const catKey = trip.category || 'trabajo';
+      const catObj = TRIP_CATEGORIES[catKey] || TRIP_CATEGORIES.trabajo;
 
       return `
-        <article class="trip-card ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}">
+        <article class="trip-card ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="true">
           <div class="trip-card-main">
-            <div class="trip-route-badge">⌖</div>
+            <div class="trip-route-badge reorder-handle" title="Arrastra o usa las flechas para mover" data-id="${trip.id}">⌖</div>
             <div class="trip-details">
               <div class="trip-title">
                 <b>${trip.title}</b>
+                <span class="trip-category-tag ${catKey}">${catObj.icon} ${catObj.label}</span>
                 <span class="trip-time">${trip.date} · ${trip.duration}</span>
               </div>
               <div class="trip-stats-row">
@@ -408,6 +444,8 @@ function renderTrips() {
               </div>
             </div>
             <div class="trip-card-actions">
+              <button class="trip-action-btn btn-move-up" data-id="${trip.id}" title="Subir orden" type="button" ${idx === 0 ? 'disabled style="opacity:0.35;"' : ''}>▲</button>
+              <button class="trip-action-btn btn-move-down" data-id="${trip.id}" title="Bajar orden" type="button" ${idx === displayedTrips.length - 1 ? 'disabled style="opacity:0.35;"' : ''}>▼</button>
               <button class="trip-action-btn btn-edit-trip" data-id="${trip.id}" title="Editar trayecto" type="button">✏️</button>
               <button class="trip-action-btn btn-delete-trip" data-id="${trip.id}" title="Eliminar trayecto" type="button">🗑️</button>
             </div>
@@ -416,10 +454,13 @@ function renderTrips() {
       `;
     }).join('');
 
-    // Event delegation for edit and delete actions
+    // Event delegation for reordering, editing, and deleting
     container.onclick = (e) => {
       const btnEdit = e.target.closest('.btn-edit-trip');
       const btnDelete = e.target.closest('.btn-delete-trip');
+      const btnUp = e.target.closest('.btn-move-up');
+      const btnDown = e.target.closest('.btn-move-down');
+
       if (btnEdit) {
         e.preventDefault();
         const id = Number(btnEdit.dataset.id);
@@ -428,12 +469,81 @@ function renderTrips() {
         e.preventDefault();
         const id = Number(btnDelete.dataset.id);
         deleteTrip(id);
+      } else if (btnUp) {
+        e.preventDefault();
+        const id = Number(btnUp.dataset.id);
+        moveTrip(id, -1);
+      } else if (btnDown) {
+        e.preventDefault();
+        const id = Number(btnDown.dataset.id);
+        moveTrip(id, 1);
       }
     };
+
+    initTripDragAndDrop();
   }
 
   // 3. Render the Impactful SVG Chart
   renderTripsChart();
+}
+
+export function moveTrip(id, direction) {
+  const index = STATE.trips.findIndex(t => t.id === id);
+  if (index === -1) return;
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= STATE.trips.length) return;
+
+  const [trip] = STATE.trips.splice(index, 1);
+  STATE.trips.splice(targetIndex, 0, trip);
+  localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+  renderTrips();
+  showToast('✓ Posición del trayecto actualizada');
+}
+
+export function initTripDragAndDrop() {
+  const cards = document.querySelectorAll('.trip-card[draggable="true"]');
+  let draggedId = null;
+
+  cards.forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      draggedId = Number(card.dataset.id);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(draggedId));
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      cards.forEach(c => c.classList.remove('drag-over'));
+    });
+
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      card.classList.add('drag-over');
+    });
+
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('drag-over');
+    });
+
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const targetId = Number(card.dataset.id);
+      if (draggedId && targetId && draggedId !== targetId) {
+        const fromIdx = STATE.trips.findIndex(t => t.id === draggedId);
+        const toIdx = STATE.trips.findIndex(t => t.id === targetId);
+        if (fromIdx !== -1 && toIdx !== -1) {
+          const [moved] = STATE.trips.splice(fromIdx, 1);
+          STATE.trips.splice(toIdx, 0, moved);
+          localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+          renderTrips();
+          showToast('✓ Trayecto reordenado con éxito');
+        }
+      }
+    });
+  });
 }
 
 function renderTripsChart() {
@@ -467,19 +577,21 @@ function renderTripsChart() {
   const minWh = Math.min(...data.map(d => d.wh), 100);
   const maxWh = Math.max(...data.map(d => d.wh), 200);
 
-  // Widen chart canvas for desktop to utilize wide screens cleanly
-  const W = Math.max(900, data.length * 125);
-  const H = 250;
-  const padL = 52;
-  const padR = 30;
-  const padT = 34;
-  const padB = 46;
+  // Responsive dimensions: Mobile fits comfortably and scrolls smoothly if needed; Desktop is wide
+  const isMobile = window.innerWidth <= 768;
+  const W = isMobile ? Math.max(340, data.length * 82) : Math.max(900, data.length * 125);
+  const H = isMobile ? 220 : 250;
+  const padL = isMobile ? 44 : 52;
+  const padR = isMobile ? 20 : 30;
+  const padT = isMobile ? 28 : 34;
+  const padB = isMobile ? 42 : 46;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
   const slotW = plotW / data.length;
-  const barW = Math.min(26, Math.max(16, slotW * 0.22));
-  const barGap = 6;
+  const barW = Math.min(isMobile ? 20 : 26, Math.max(12, slotW * 0.22));
+  const barGap = isMobile ? 4 : 6;
+  const fontScale = 0.85 + (STATE.fontSize - 1) * 0.12;
   const linePoints = [];
 
   let barsSvg = '';
@@ -503,16 +615,16 @@ function renderTripsChart() {
         <!-- Gasolina 95 Bar -->
         <rect x="${xGas}" y="${yGas}" width="${barW}" height="${hGas}" rx="4" fill="url(#tripGasGrad)" />
         <rect x="${xGas}" y="${yGas}" width="${barW}" height="2.5" rx="1" fill="#fff" filter="url(#glowGas)" />
-        <text x="${xGas + barW / 2}" y="${yGas - 6}" font-size="10.5" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
+        <text x="${xGas + barW / 2}" y="${yGas - 6}" font-size="${(10.5 * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
 
         <!-- Diésel A Bar -->
         <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="${hDiesel}" rx="4" fill="url(#tripDieGrad)" />
         <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="2.5" rx="1" fill="#fff" filter="url(#glowDie)" />
-        <text x="${xDiesel + barW / 2}" y="${yDiesel - 6}" font-size="10.5" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
+        <text x="${xDiesel + barW / 2}" y="${yDiesel - 6}" font-size="${(10.5 * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
 
         <!-- Labels -->
-        <text x="${cx}" y="${H - 22}" font-size="12" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
-        <text x="${cx}" y="${H - 7}" font-size="10.5" fill="var(--text-muted)" text-anchor="middle" font-family="var(--mono)">${d.dist}</text>
+        <text x="${cx}" y="${H - 22}" font-size="${(12 * fontScale).toFixed(1)}" class="chart-text-title" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
+        <text x="${cx}" y="${H - 7}" font-size="${(10.5 * fontScale).toFixed(1)}" class="chart-text-sub" fill="var(--text-muted)" text-anchor="middle" font-family="var(--mono)">${d.dist}</text>
       </g>
     `;
   });
@@ -525,14 +637,14 @@ function renderTripsChart() {
     const euroVal = (maxCost * (1 - s / steps)).toFixed(1);
     gridSvg += `
       <line x1="${padL}" y1="${yVal}" x2="${W - padR}" y2="${yVal}" stroke="${s === steps ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)'}" stroke-dasharray="${s === steps ? 'none' : '4 4'}" />
-      <text x="${padL - 8}" y="${yVal + 3.5}" font-size="10" fill="var(--text-muted)" text-anchor="end" font-family="var(--mono)">${euroVal}€</text>
+      <text x="${padL - 8}" y="${yVal + 3.5}" font-size="${(10 * fontScale).toFixed(1)}" class="chart-text-axis" fill="var(--text-muted)" text-anchor="end" font-family="var(--mono)">${euroVal}€</text>
     `;
   }
 
   const pointsStr = linePoints.map(p => `${p.x},${p.y}`).join(' ');
   const dotsSvg = linePoints.map(p => `
     <circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#4ce0d2" stroke="#060c0a" stroke-width="2" filter="url(#glowCyan)" />
-    <text x="${p.x}" y="${p.y - 8}" font-size="9.5" fill="#4ce0d2" text-anchor="middle" font-weight="700" font-family="var(--mono)">${p.val}</text>
+    <text x="${p.x}" y="${p.y - 8}" font-size="${(9.5 * fontScale).toFixed(1)}" class="chart-text-val" fill="#4ce0d2" text-anchor="middle" font-weight="700" font-family="var(--mono)">${p.val}</text>
   `).join('');
 
   chartBox.innerHTML = `
@@ -573,24 +685,58 @@ function renderTripsChart() {
 function initAutoTripRecorder() {
   const btnSim = document.getElementById('btn-simulate-trip');
   const btnReset = document.getElementById('btn-reset-trips');
+  const filterRow = document.getElementById('trip-category-filters');
+
+  // Filter chips click handler
+  if (filterRow) {
+    filterRow.addEventListener('click', (e) => {
+      const chip = e.target.closest('.trip-filter-chip');
+      if (!chip) return;
+      STATE.selectedTripCategory = chip.dataset.category || 'all';
+      renderTrips();
+    });
+  }
 
   if (btnSim) {
     btnSim.addEventListener('click', () => {
       const routes = [
-        { title: 'Trabajo ➔ Ciudad', dist: 18.6, wh: 132 },
-        { title: 'Autovía / Ronda', dist: 29.4, wh: 148 },
-        { title: 'Centro Comercial', dist: 11.2, wh: 126 },
-        { title: 'Escapada Sierra', dist: 54.0, wh: 156 },
-        { title: 'Ruta M-40 / Aeropuerto', dist: 24.8, wh: 139 }
+        { title: 'Trabajo ➔ Ciudad', dist: 18.6, wh: 132, category: 'trabajo' },
+        { title: 'Autovía / Ronda', dist: 29.4, wh: 148, category: 'ocio' },
+        { title: 'Centro Comercial', dist: 11.2, wh: 126, category: 'compras' },
+        { title: 'Escapada Sierra', dist: 54.0, wh: 156, category: 'ocio' },
+        { title: 'Traslado Directivo', dist: 24.8, wh: 139, category: 'chofer' }
       ];
       const sample = routes[Math.floor(Math.random() * routes.length)];
       const deltaOdo = sample.dist;
 
       STATE.vehicle.odometer = Number((STATE.vehicle.odometer + deltaOdo).toFixed(1));
 
+      // Dynamic Tracción & Marcha Simulation for immediate live feedback
+      const simSpeed = Math.floor(45 + Math.random() * 35);
+      const simPower = Number((12.5 + Math.random() * 9.5).toFixed(1));
+      STATE.vehicle.speed = simSpeed;
+      STATE.vehicle.gear = 'D';
+      STATE.vehicle.power = simPower;
+      STATE.vehicle.driveStatus = `En Marcha (${simSpeed} km/h · Tracción)`;
+      STATE.vehicle.driveMode = 'SPORT Dinámico';
+      renderVehicleHUD();
+      localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
+
+      // Reset to parked after active driving simulation
+      setTimeout(() => {
+        STATE.vehicle.speed = 0;
+        STATE.vehicle.gear = 'P';
+        STATE.vehicle.power = 0.0;
+        STATE.vehicle.driveStatus = 'Estacionado (P)';
+        STATE.vehicle.driveMode = 'ECO Inteligente';
+        renderVehicleHUD();
+        localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
+      }, 3800);
+
       const newTrip = {
         id: Date.now(),
         title: sample.title,
+        category: sample.category || 'trabajo',
         date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
         distance: sample.dist,
         energy: Number(((sample.dist * sample.wh) / 1000).toFixed(2)),
@@ -604,8 +750,7 @@ function initAutoTripRecorder() {
       localStorage.setItem('biguaydi-recorder-odo', STATE.vehicle.odometer);
 
       renderTrips();
-      renderVehicleHUD();
-      showToast(`⚡ ¡Nuevo trayecto de ${sample.dist} km registrado automáticamente!`);
+      showToast(`⚡ ¡Nuevo trayecto de ${sample.dist} km (${TRIP_CATEGORIES[newTrip.category]?.label || 'Trabajo'}) registrado!`);
 
       setTimeout(() => {
         const firstCard = document.querySelector('.trip-card');
@@ -620,10 +765,10 @@ function initAutoTripRecorder() {
     btnReset.addEventListener('click', () => {
       if (confirm('¿Restablecer el historial de trayectos a los valores iniciales de prueba?')) {
         STATE.trips = [
-          { id: 1, title: 'Trabajo ➔ Casa', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
-          { id: 2, title: 'Casa ➔ Gimnasio', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
-          { id: 3, title: 'Madrid ➔ Toledo', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
-          { id: 4, title: 'Recados urbanos', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
+          { id: 1, title: 'Trabajo ➔ Casa', category: 'trabajo', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
+          { id: 2, title: 'Casa ➔ Gimnasio', category: 'personal', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
+          { id: 3, title: 'Ruta Clientes Centro', category: 'chofer', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
+          { id: 4, title: 'Compras & Supermercado', category: 'compras', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
         ];
         localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
         renderTrips();
@@ -672,10 +817,12 @@ function initAutoTripRecorder() {
         const dist = parseFloat(document.getElementById('edit-trip-distance').value) || 0;
         const wh = parseInt(document.getElementById('edit-trip-wh').value, 10) || 138;
         const energy = Number(((dist * wh) / 1000).toFixed(2));
-        
+        const cat = document.getElementById('edit-trip-category')?.value || 'trabajo';
+
         STATE.trips[tripIndex] = {
           ...STATE.trips[tripIndex],
           title: document.getElementById('edit-trip-title').value.trim() || 'Ruta',
+          category: cat,
           date: document.getElementById('edit-trip-date').value.trim() || 'Hoy',
           distance: dist,
           avgWh: wh,
@@ -701,6 +848,7 @@ export function openEditTripModal(id) {
   const modal = document.getElementById('modal-edit-trip');
   const idInput = document.getElementById('edit-trip-id');
   const titleInput = document.getElementById('edit-trip-title');
+  const catInput = document.getElementById('edit-trip-category');
   const dateInput = document.getElementById('edit-trip-date');
   const distInput = document.getElementById('edit-trip-distance');
   const whInput = document.getElementById('edit-trip-wh');
@@ -708,6 +856,7 @@ export function openEditTripModal(id) {
 
   if (idInput) idInput.value = trip.id;
   if (titleInput) titleInput.value = trip.title;
+  if (catInput) catInput.value = trip.category || 'trabajo';
   if (dateInput) dateInput.value = trip.date;
   if (distInput) distInput.value = trip.distance;
   if (whInput) whInput.value = trip.avgWh;
@@ -723,13 +872,14 @@ export function closeEditTripModal() {
 
 export function deleteTrip(id) {
   const trip = STATE.trips.find(t => t.id === id);
-  const name = trip ? `"${trip.title}"` : 'este trayecto';
-  if (confirm(`¿Eliminar ${name} del historial?`)) {
-    STATE.trips = STATE.trips.filter(t => t.id !== id);
-    localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
-    renderTrips();
-    showToast('🗑️ Trayecto eliminado');
-  }
+  if (!trip) return;
+  const confirmed = window.confirm(`¿Estás seguro de que deseas eliminar el trayecto "${trip.title}" (${trip.distance.toFixed(1)} km)? Esta acción no se puede deshacer.`);
+  if (!confirmed) return;
+
+  STATE.trips = STATE.trips.filter(t => t.id !== id);
+  localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+  renderTrips();
+  showToast('🗑️ Trayecto eliminado');
 }
 
 // --- ENCRYPTED VAULT INTEGRATION ---
@@ -948,9 +1098,29 @@ export async function syncVehicleTelemetry(isAutoBoot = false) {
     if (rt.endurance_mileage !== undefined) STATE.vehicle.range = Number(rt.endurance_mileage);
     if (rt.total_mileage !== undefined) STATE.vehicle.odometer = Number(rt.total_mileage);
     if (rt.vehicle_speed !== undefined) STATE.vehicle.speed = Number(rt.vehicle_speed);
+    if (rt.gear !== undefined) STATE.vehicle.gear = String(rt.gear);
+    else STATE.vehicle.gear = STATE.vehicle.speed > 0 ? 'D' : 'P';
+    if (rt.power !== undefined) STATE.vehicle.power = Number(rt.power);
+    else if (rt.power_kw !== undefined) STATE.vehicle.power = Number(rt.power_kw);
+    if (rt.charging !== undefined) STATE.vehicle.charging = Boolean(rt.charging);
+    if (rt.voltage_hv !== undefined) STATE.vehicle.voltageHV = Number(rt.voltage_hv);
+    if (rt.voltage_12v !== undefined) STATE.vehicle.voltage12v = Number(rt.voltage_12v);
+    if (rt.temp_cabin !== undefined) STATE.vehicle.tempCabin = Number(rt.temp_cabin);
+    if (rt.temp_ext !== undefined) STATE.vehicle.tempExt = Number(rt.temp_ext);
+
+    STATE.vehicle.driveStatus = STATE.vehicle.charging
+      ? '⚡ Cargando Batería'
+      : (STATE.vehicle.speed > 0
+        ? `En Marcha (${STATE.vehicle.speed} km/h · Marcha ${STATE.vehicle.gear})`
+        : `Estacionado (${STATE.vehicle.gear})`);
+
+    if (rt.drive_mode) STATE.vehicle.driveMode = rt.drive_mode;
+
     if (eg.nearest_energy_consumption?.avg_ev_consumption) {
       STATE.vehicle.avgConsumption50km = Number(eg.nearest_energy_consumption.avg_ev_consumption);
     }
+
+    localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
 
     // Check if odometer has advanced to automatically record completed trip
     const prevOdo = Number(localStorage.getItem('biguaydi-recorder-odo')) || STATE.vehicle.odometer;
@@ -961,6 +1131,7 @@ export async function syncVehicleTelemetry(isAutoBoot = false) {
         const autoTrip = {
           id: Date.now(),
           title: `Ruta Detectada (${delta} km)`,
+          category: 'trabajo',
           date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
           distance: delta,
           energy: Number(((delta * avgWh) / 1000).toFixed(2)),

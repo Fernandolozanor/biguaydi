@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v11-trip-actions';
+const CACHE = 'biguaydi-v12-reorder-categories';
 const ASSETS = [
   './',
   './index.html',
