@@ -454,8 +454,11 @@
                 <button class="action-btn active" id="btn-simulate-trip" style="padding:8px 14px; font-size:12px;">
                   ⚡ Simular y Probar Trayecto
                 </button>
+                <button class="action-btn" id="btn-clear-all-trips" style="padding:8px 12px; font-size:12px; color:var(--danger); border-color:rgba(239,68,68,0.35);">
+                  🗑️ Vaciar todo
+                </button>
                 <button class="action-btn" id="btn-reset-trips" style="padding:8px 12px; font-size:12px; color:var(--text-muted);">
-                  🔄 Restablecer
+                  🔄 Restablecer demo
                 </button>
               </div>
             </div>
@@ -701,6 +704,66 @@
       <span>Ajustes</span>
     </a>
   </nav>
+
+  <!-- EDIT TRIP MODAL DIALOG -->
+  <div class="app-modal-overlay" id="modal-edit-trip" hidden>
+    <div class="app-modal-card">
+      <div class="app-modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">✏️</span>
+          <h3 style="margin:0;">Editar Trayecto</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-edit-modal" type="button" aria-label="Cerrar">✕</button>
+      </div>
+      <form id="form-edit-trip" class="app-modal-body">
+        <input type="hidden" id="edit-trip-id">
+
+        <div class="calc-control-group">
+          <label for="edit-trip-title">Nombre / Descripción de la ruta:</label>
+          <div class="calc-input-wrapper">
+            <input type="text" id="edit-trip-title" required placeholder="Ej: Trabajo ➔ Casa">
+          </div>
+        </div>
+
+        <div class="calc-control-group">
+          <label for="edit-trip-date">Fecha y hora:</label>
+          <div class="calc-input-wrapper">
+            <input type="text" id="edit-trip-date" required placeholder="Ej: Hoy, 18:20">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="calc-control-group">
+            <label for="edit-trip-distance">Distancia:</label>
+            <div class="calc-input-wrapper">
+              <input type="number" step="0.1" min="0.1" id="edit-trip-distance" required>
+              <span>km</span>
+            </div>
+          </div>
+
+          <div class="calc-control-group">
+            <label for="edit-trip-wh">Consumo:</label>
+            <div class="calc-input-wrapper">
+              <input type="number" step="1" min="50" max="400" id="edit-trip-wh" required>
+              <span>Wh/km</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-control-group">
+          <label for="edit-trip-duration">Duración:</label>
+          <div class="calc-input-wrapper">
+            <input type="text" id="edit-trip-duration" placeholder="Ej: 28 min">
+          </div>
+        </div>
+
+        <div class="app-modal-footer">
+          <button type="button" class="action-btn" id="btn-cancel-edit-trip" style="padding:10px 18px;">Cancelar</button>
+          <button type="submit" class="action-btn active" id="btn-save-edit-trip" style="padding:10px 18px;">💾 Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- TOAST POPUP -->
   <div id="toast" class="toast-msg"></div>

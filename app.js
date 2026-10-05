@@ -399,16 +399,37 @@ function renderTrips() {
               </div>
             </div>
           </div>
-          <div class="trip-cost-badge">
-            <div class="trip-ev-cost">${tripCostEv.toFixed(2)} €</div>
-            <div class="trip-ice-comp" style="font-size:11.5px; line-height:1.4;">
-              <div>Gas: <del>${tripCostGas.toFixed(2)}€</del> <b class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)}€</b></div>
-              <div>Diésel: <del>${tripCostDiesel.toFixed(2)}€</del> <b class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)}€</b></div>
+          <div class="trip-card-right">
+            <div class="trip-cost-badge">
+              <div class="trip-ev-cost">${tripCostEv.toFixed(2)} €</div>
+              <div class="trip-ice-comp" style="font-size:11.5px; line-height:1.4;">
+                <div>Gas: <del>${tripCostGas.toFixed(2)}€</del> <b class="badge-saving badge-gas">-${tripSavingsGas.toFixed(2)}€</b></div>
+                <div>Diésel: <del>${tripCostDiesel.toFixed(2)}€</del> <b class="badge-saving badge-diesel">-${tripSavingsDiesel.toFixed(2)}€</b></div>
+              </div>
+            </div>
+            <div class="trip-card-actions">
+              <button class="trip-action-btn btn-edit-trip" data-id="${trip.id}" title="Editar trayecto" type="button">✏️</button>
+              <button class="trip-action-btn btn-delete-trip" data-id="${trip.id}" title="Eliminar trayecto" type="button">🗑️</button>
             </div>
           </div>
         </article>
       `;
     }).join('');
+
+    // Event delegation for edit and delete actions
+    container.onclick = (e) => {
+      const btnEdit = e.target.closest('.btn-edit-trip');
+      const btnDelete = e.target.closest('.btn-delete-trip');
+      if (btnEdit) {
+        e.preventDefault();
+        const id = Number(btnEdit.dataset.id);
+        openEditTripModal(id);
+      } else if (btnDelete) {
+        e.preventDefault();
+        const id = Number(btnDelete.dataset.id);
+        deleteTrip(id);
+      }
+    };
   }
 
   // 3. Render the Impactful SVG Chart
@@ -597,7 +618,7 @@ function initAutoTripRecorder() {
 
   if (btnReset) {
     btnReset.addEventListener('click', () => {
-      if (confirm('¿Restablecer el historial de trayectos a los valores iniciales?')) {
+      if (confirm('¿Restablecer el historial de trayectos a los valores iniciales de prueba?')) {
         STATE.trips = [
           { id: 1, title: 'Trabajo ➔ Casa', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
           { id: 2, title: 'Casa ➔ Gimnasio', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
@@ -609,6 +630,105 @@ function initAutoTripRecorder() {
         showToast('Historial de trayectos restablecido');
       }
     });
+  }
+
+  // Clear all trips
+  const btnClearAll = document.getElementById('btn-clear-all-trips');
+  if (btnClearAll) {
+    btnClearAll.addEventListener('click', () => {
+      if (STATE.trips.length === 0) {
+        showToast('El historial ya está vacío');
+        return;
+      }
+      if (confirm('¿Vaciar por completo todo el historial de trayectos registrados?')) {
+        STATE.trips = [];
+        localStorage.setItem('biguaydi-trips', JSON.stringify([]));
+        renderTrips();
+        showToast('🗑️ Historial de trayectos vaciado');
+      }
+    });
+  }
+
+  // Edit Modal Event Handlers
+  const formEdit = document.getElementById('form-edit-trip');
+  const btnCancel = document.getElementById('btn-cancel-edit-trip');
+  const btnClose = document.getElementById('btn-close-edit-modal');
+  const modal = document.getElementById('modal-edit-trip');
+
+  if (btnCancel) btnCancel.addEventListener('click', closeEditTripModal);
+  if (btnClose) btnClose.addEventListener('click', closeEditTripModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeEditTripModal();
+    });
+  }
+
+  if (formEdit) {
+    formEdit.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = Number(document.getElementById('edit-trip-id').value);
+      const tripIndex = STATE.trips.findIndex(t => t.id === id);
+      if (tripIndex !== -1) {
+        const dist = parseFloat(document.getElementById('edit-trip-distance').value) || 0;
+        const wh = parseInt(document.getElementById('edit-trip-wh').value, 10) || 138;
+        const energy = Number(((dist * wh) / 1000).toFixed(2));
+        
+        STATE.trips[tripIndex] = {
+          ...STATE.trips[tripIndex],
+          title: document.getElementById('edit-trip-title').value.trim() || 'Ruta',
+          date: document.getElementById('edit-trip-date').value.trim() || 'Hoy',
+          distance: dist,
+          avgWh: wh,
+          energy: energy,
+          duration: document.getElementById('edit-trip-duration').value.trim() || `${Math.round(dist * 1.5)} min`,
+          isNew: false
+        };
+
+        localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+        renderTrips();
+        closeEditTripModal();
+        showToast('✓ Trayecto actualizado con éxito');
+      }
+    });
+  }
+}
+
+// --- TRIP EDIT & DELETE HELPERS ---
+export function openEditTripModal(id) {
+  const trip = STATE.trips.find(t => t.id === id);
+  if (!trip) return;
+
+  const modal = document.getElementById('modal-edit-trip');
+  const idInput = document.getElementById('edit-trip-id');
+  const titleInput = document.getElementById('edit-trip-title');
+  const dateInput = document.getElementById('edit-trip-date');
+  const distInput = document.getElementById('edit-trip-distance');
+  const whInput = document.getElementById('edit-trip-wh');
+  const durInput = document.getElementById('edit-trip-duration');
+
+  if (idInput) idInput.value = trip.id;
+  if (titleInput) titleInput.value = trip.title;
+  if (dateInput) dateInput.value = trip.date;
+  if (distInput) distInput.value = trip.distance;
+  if (whInput) whInput.value = trip.avgWh;
+  if (durInput) durInput.value = trip.duration;
+
+  if (modal) modal.hidden = false;
+}
+
+export function closeEditTripModal() {
+  const modal = document.getElementById('modal-edit-trip');
+  if (modal) modal.hidden = true;
+}
+
+export function deleteTrip(id) {
+  const trip = STATE.trips.find(t => t.id === id);
+  const name = trip ? `"${trip.title}"` : 'este trayecto';
+  if (confirm(`¿Eliminar ${name} del historial?`)) {
+    STATE.trips = STATE.trips.filter(t => t.id !== id);
+    localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+    renderTrips();
+    showToast('🗑️ Trayecto eliminado');
   }
 }
 

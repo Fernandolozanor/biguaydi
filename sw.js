@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v10-auto-refresh';
+const CACHE = 'biguaydi-v11-trip-actions';
 const ASSETS = [
   './',
   './index.html',
