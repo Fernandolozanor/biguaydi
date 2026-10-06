@@ -2057,7 +2057,9 @@ body[data-size="5"] {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .compact-title {
@@ -2068,20 +2070,31 @@ body[data-size="5"] {
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.2px;
+  flex-shrink: 1;
 }
 
 .compact-date {
   font-size: 11px;
   color: var(--text-muted);
   font-family: var(--mono);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* Línea 2: Métricas físicas en línea con pastillas sutiles */
+/* Línea 2: Métricas físicas SIEMPRE en una sola línea horizontal (nunca baja a 3ª línea) */
 .compact-line-2 {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.compact-line-2::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 .compact-pill {
@@ -2093,6 +2106,8 @@ body[data-size="5"] {
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   line-height: 1.25;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .compact-pill b {

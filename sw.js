@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v38-ultra-compact-inline-list';
+const CACHE = 'biguaydi-v39-strict-two-line-compact-view';
 const ASSETS = [
   './',
   './index.html',
