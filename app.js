@@ -86,6 +86,8 @@ const STATE = {
   customDateFrom: localStorage.getItem('biguaydi-trip-date-from') || '',
   customDateTo: localStorage.getItem('biguaydi-trip-date-to') || '',
   tripSort: localStorage.getItem('biguaydi-trip-sort') || 'recent',
+  chartGroupMode: localStorage.getItem('biguaydi-chart-group') || 'auto', // auto, trip, day, week, month, year
+  chartExpanded: localStorage.getItem('biguaydi-chart-expanded') === 'true',
   // Loaded from cache or default values for Dolphin Surf
   vehicle: (function() {
     try {
@@ -1181,15 +1183,89 @@ export function initTripDragAndDrop() {
   });
 }
 
+function groupTripsByPeriod(trips, mode) {
+  const groups = new Map();
+  const spanishShortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  trips.forEach(t => {
+    const ts = getTripTimestamp(t);
+    const d = new Date(ts);
+    let key = '';
+    let title = '';
+    let sortKey = 0;
+
+    if (mode === 'day') {
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const day = d.getDate();
+      key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      title = `${String(day).padStart(2, '0')} ${spanishShortMonths[month]}`;
+      sortKey = new Date(year, month, day).getTime();
+    } else if (mode === 'week') {
+      // Calculate ISO week
+      const target = new Date(d.valueOf());
+      const dayNr = (d.getDay() + 6) % 7;
+      target.setDate(target.getDate() - dayNr + 3);
+      const firstThursday = target.valueOf();
+      target.setMonth(0, 1);
+      if (target.getDay() !== 4) {
+        target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+      }
+      const weekNo = 1 + Math.ceil((firstThursday - target) / 604800000);
+      const year = d.getFullYear();
+      key = `${year}-W${String(weekNo).padStart(2, '0')}`;
+      title = `Sem ${weekNo} (${spanishShortMonths[d.getMonth()]})`;
+      sortKey = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dayNr).getTime();
+    } else if (mode === 'month') {
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      key = `${year}-${String(month + 1).padStart(2, '0')}`;
+      title = `${spanishShortMonths[month]} ${String(year).slice(2)}`;
+      sortKey = new Date(year, month, 1).getTime();
+    } else if (mode === 'year') {
+      const year = d.getFullYear();
+      key = `${year}`;
+      title = `${year}`;
+      sortKey = new Date(year, 0, 1).getTime();
+    }
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        title,
+        sortKey,
+        distance: 0,
+        energy: 0,
+        whWeightedSum: 0,
+        count: 0,
+        trips: []
+      });
+    }
+
+    const g = groups.get(key);
+    g.distance += (t.distance || 0);
+    g.energy += (t.energy || 0);
+    g.whWeightedSum += (t.avgWh || 140) * (t.distance || 0);
+    g.count += 1;
+    g.trips.push(t);
+  });
+
+  return Array.from(groups.values())
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map(g => ({
+      title: g.title,
+      dist: `${g.distance.toFixed(1)} km`,
+      distance: g.distance,
+      energy: g.energy,
+      avgWh: g.distance > 0 ? Math.round(g.whWeightedSum / g.distance) : 140,
+      count: g.count,
+      isGroup: true
+    }));
+}
+
 function renderTripsChart() {
   const chartBox = document.getElementById('trips-chart-container');
   if (!chartBox) return;
-
-  const trips = STATE.trips.slice(0, 8).reverse();
-  if (trips.length === 0) {
-    chartBox.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-dim); font-size:12px;">Sin datos suficientes para graficar</div>';
-    return;
-  }
 
   const costPerKwh = getEffectiveElectricityPrice();
   const gasPrice = STATE.prices.gas95;
@@ -1197,47 +1273,162 @@ function renderTripsChart() {
   const iceCons = STATE.prices.iceConsumption;
   const dieselCons = STATE.prices.dieselConsumption;
 
-  const data = trips.map(t => {
-    const costGas = (t.distance / 100) * iceCons * gasPrice;
-    const costDiesel = (t.distance / 100) * dieselCons * dieselPrice;
-    const tripCostPerKwh = getEffectiveElectricityPrice(t);
-    const costEv = t.energy * tripCostPerKwh;
-    return {
-      title: t.title.split(' ')[0] || `V${t.id}`,
-      dist: t.distance.toFixed(1) + 'km',
-      wh: t.avgWh,
-      costGas,
-      costDiesel,
-      costEv
-    };
+  // Active time period filtered trips
+  const activePeriod = STATE.selectedTripPeriod || 'all';
+  const periodTrips = STATE.trips.filter(t => isTripInPeriod(t, activePeriod));
+
+  if (periodTrips.length === 0) {
+    chartBox.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-dim); font-size:12px;">Sin datos suficientes para graficar</div>';
+    return;
+  }
+
+  // Update Controls Active States (Pills & Expand)
+  const pills = document.querySelectorAll('#trips-chart-group-pills .chart-pill-btn');
+  pills.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.group === (STATE.chartGroupMode || 'auto'));
   });
 
-  const hasEvCost = costPerKwh > 0;
-  const maxCost = Math.max(...data.map(d => Math.max(d.costGas, d.costDiesel, d.costEv)), 1.5);
-  const minWh = Math.min(...data.map(d => d.wh), 100);
-  const maxWh = Math.max(...data.map(d => d.wh), 200);
+  const btnExpand = document.getElementById('btn-chart-expand');
+  if (btnExpand) {
+    btnExpand.classList.toggle('active', !!STATE.chartExpanded);
+    const expandText = btnExpand.querySelector('.expand-text');
+    if (expandText) {
+      expandText.textContent = STATE.chartExpanded ? 'Plegar vista' : 'Desplegar todo';
+    }
+  }
 
-  // Responsive dimensions: Mobile fits comfortably and scrolls smoothly if needed; Desktop is wide
+  // Screen width & container dimension determination
+  const containerW = chartBox.parentElement ? chartBox.parentElement.clientWidth : window.innerWidth;
   const isMobile = window.innerWidth <= 768;
-  const W = isMobile ? Math.max(340, data.length * (hasEvCost ? 92 : 82)) : Math.max(900, data.length * (hasEvCost ? 135 : 125));
-  const H = isMobile ? 220 : 250;
+  const hasEvCost = costPerKwh > 0;
   const padL = isMobile ? 44 : 52;
   const padR = isMobile ? 20 : 30;
   const padT = isMobile ? 28 : 34;
   const padB = isMobile ? 42 : 46;
+  const availablePlotW = Math.max(280, containerW - padL - padR - 36);
+
+  // Maximum items that fit comfortably without collapsing or cramming bars
+  // Min slot width per group is ~60px on mobile, ~78px on desktop
+  const minComfortSlotW = isMobile ? 62 : 80;
+  const maxComfortableItems = Math.max(4, Math.floor(availablePlotW / minComfortSlotW));
+
+  // Determine effective aggregation mode
+  let effectiveMode = STATE.chartGroupMode || 'auto';
+  if (effectiveMode === 'auto') {
+    // If not expanded, we auto-group down hierarchical levels until count <= maxComfortableItems
+    if (!STATE.chartExpanded) {
+      if (periodTrips.length <= maxComfortableItems) {
+        effectiveMode = 'trip';
+      } else {
+        const byDays = groupTripsByPeriod(periodTrips, 'day');
+        if (byDays.length <= maxComfortableItems) {
+          effectiveMode = 'day';
+        } else {
+          const byWeeks = groupTripsByPeriod(periodTrips, 'week');
+          if (byWeeks.length <= maxComfortableItems) {
+            effectiveMode = 'week';
+          } else {
+            const byMonths = groupTripsByPeriod(periodTrips, 'month');
+            if (byMonths.length <= maxComfortableItems) {
+              effectiveMode = 'month';
+            } else {
+              effectiveMode = 'year';
+            }
+          }
+        }
+      }
+    } else {
+      // Expanded view with auto defaults to individual trips (or day if trip count > 60)
+      effectiveMode = periodTrips.length > 50 ? 'day' : 'trip';
+    }
+  }
+
+  // Update Header title subtitle to reflect current group mode
+  const headingEl = document.getElementById('trips-chart-heading');
+  if (headingEl) {
+    const modeNames = {
+      trip: 'Trayectos Individuales',
+      day: 'Agrupado por Días',
+      week: 'Agrupado por Semanas',
+      month: 'Agrupado por Meses',
+      year: 'Agrupado por Años'
+    };
+    headingEl.textContent = `Comparativa Económica (${modeNames[effectiveMode] || 'Por Trayecto'})`;
+  }
+
+  // Build dataset according to effectiveMode
+  let rawData = [];
+  if (effectiveMode === 'trip') {
+    // Chronological order (oldest to newest)
+    const sortedTrips = [...periodTrips].sort((a, b) => getTripTimestamp(a) - getTripTimestamp(b));
+    const items = (!STATE.chartExpanded && sortedTrips.length > maxComfortableItems)
+      ? sortedTrips.slice(-maxComfortableItems)
+      : sortedTrips;
+
+    rawData = items.map(t => {
+      const tripCostPerKwh = getEffectiveElectricityPrice(t);
+      return {
+        title: t.title.split(' ')[0] || `V${t.id}`,
+        dist: t.distance.toFixed(1) + ' km',
+        wh: t.avgWh,
+        costGas: (t.distance / 100) * iceCons * gasPrice,
+        costDiesel: (t.distance / 100) * dieselCons * dieselPrice,
+        costEv: t.energy * tripCostPerKwh,
+        count: 1
+      };
+    });
+  } else {
+    // Grouped by day, week, month, year
+    const grouped = groupTripsByPeriod(periodTrips, effectiveMode);
+    const items = (!STATE.chartExpanded && grouped.length > maxComfortableItems)
+      ? grouped.slice(-maxComfortableItems)
+      : grouped;
+
+    rawData = items.map(g => ({
+      title: g.title,
+      dist: g.dist,
+      wh: g.avgWh,
+      costGas: (g.distance / 100) * iceCons * gasPrice,
+      costDiesel: (g.distance / 100) * dieselCons * dieselPrice,
+      costEv: g.energy * costPerKwh,
+      count: g.count
+    }));
+  }
+
+  if (rawData.length === 0) {
+    chartBox.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-dim); font-size:12px;">Sin datos suficientes para graficar</div>';
+    return;
+  }
+
+  const maxCost = Math.max(...rawData.map(d => Math.max(d.costGas, d.costDiesel, d.costEv)), 1.5);
+  const minWh = Math.min(...rawData.map(d => d.wh), 100);
+  const maxWh = Math.max(...rawData.map(d => d.wh), 200);
+
+  // Layout calculations
+  // If expanded or item count requires scrolling, calculate wide SVG canvas and enable horizontal scroll
+  const desiredSlotW = isMobile ? (hasEvCost ? 82 : 72) : (hasEvCost ? 110 : 96);
+  const naturalWidth = padL + padR + (rawData.length * desiredSlotW);
+  const fittedWidth = Math.max(340, containerW - 20);
+
+  let W = fittedWidth;
+  if (STATE.chartExpanded || naturalWidth > fittedWidth) {
+    W = Math.max(fittedWidth, naturalWidth);
+  }
+
+  const H = isMobile ? 230 : 260;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
+  const slotW = plotW / rawData.length;
 
-  const slotW = plotW / data.length;
   const barCount = hasEvCost ? 3 : 2;
-  const barW = Math.min(isMobile ? (hasEvCost ? 15 : 20) : (hasEvCost ? 20 : 26), Math.max(10, slotW * (hasEvCost ? 0.17 : 0.22)));
-  const barGap = isMobile ? 3 : 5;
+  const barW = Math.min(isMobile ? (hasEvCost ? 14 : 18) : (hasEvCost ? 20 : 25), Math.max(8, slotW * (hasEvCost ? 0.17 : 0.22)));
+  const barGap = isMobile ? 2.5 : 4.5;
   const totalGroupW = (barCount * barW) + ((barCount - 1) * barGap);
   const fontScale = 0.85 + (STATE.fontSize - 1) * 0.12;
   const linePoints = [];
 
   let barsSvg = '';
-  data.forEach((d, i) => {
+  rawData.forEach((d, i) => {
     const cx = padL + i * slotW + slotW / 2;
     const startX = cx - (totalGroupW / 2);
 
@@ -1254,9 +1445,9 @@ function renderTripsChart() {
       xDiesel = startX + barW + barGap;
     }
 
-    const hGas = Math.max(10, (d.costGas / maxCost) * plotH);
-    const hDiesel = Math.max(10, (d.costDiesel / maxCost) * plotH);
-    const hEv = hasEvCost ? Math.max(6, (d.costEv / maxCost) * plotH) : 0;
+    const hGas = Math.max(8, (d.costGas / maxCost) * plotH);
+    const hDiesel = Math.max(8, (d.costDiesel / maxCost) * plotH);
+    const hEv = hasEvCost ? Math.max(5, (d.costEv / maxCost) * plotH) : 0;
 
     const yGas = padT + (plotH - hGas);
     const yDiesel = padT + (plotH - hDiesel);
@@ -1267,51 +1458,28 @@ function renderTripsChart() {
     linePoints.push({ x: cx, y: yWh, val: d.wh });
 
     // Anti-collision algorithm between Wh dashed line/circle and bar price labels
-    const collisionDist = 18; // px threshold for collision
-
-    // Default label positions (5px above bar top)
+    const collisionDist = 18;
     let textYGas = yGas - 5;
     let textYDiesel = yDiesel - 5;
     let textYEv = yEv - 5;
 
-    // Check collision with the Wh line point (cx, yWh)
-    const collidesGas = Math.abs(textYGas - yWh) < collisionDist;
-    const collidesDiesel = Math.abs(textYDiesel - yWh) < collisionDist;
-    const collidesEv = hasEvCost && Math.abs(textYEv - yWh) < collisionDist;
-
-    // Displace away from line if colliding
-    if (collidesGas) {
-      if (yWh <= textYGas) {
-        textYGas = Math.min(yGas + 14, H - 35); // place inside top of bar if room, or push down
-      } else {
-        textYGas = Math.max(padT - 6, yWh - 16); // push above line
-      }
+    if (Math.abs(textYGas - yWh) < collisionDist) {
+      textYGas = (yWh <= textYGas) ? Math.min(yGas + 14, H - 35) : Math.max(padT - 6, yWh - 16);
     }
-
-    if (collidesDiesel) {
-      if (yWh <= textYDiesel) {
-        textYDiesel = Math.min(yDiesel + 14, H - 35);
-      } else {
-        textYDiesel = Math.max(padT - 6, yWh - 16);
-      }
+    if (Math.abs(textYDiesel - yWh) < collisionDist) {
+      textYDiesel = (yWh <= textYDiesel) ? Math.min(yDiesel + 14, H - 35) : Math.max(padT - 6, yWh - 16);
     }
-
-    if (collidesEv) {
-      if (yWh <= textYEv) {
-        textYEv = Math.min(yEv + 14, H - 35);
-      } else {
-        textYEv = Math.max(padT - 6, yWh - 16);
-      }
+    if (hasEvCost && Math.abs(textYEv - yWh) < collisionDist) {
+      textYEv = (yWh <= textYEv) ? Math.min(yEv + 14, H - 35) : Math.max(padT - 6, yWh - 16);
     }
 
     let evBarSvg = '';
     if (hasEvCost) {
       evBarSvg = `
-        <!-- Coste Eléctrico EV Bar (Verde) -->
-        <rect x="${xEv}" y="${yEv}" width="${barW}" height="${hEv}" rx="3.5" fill="url(#tripEvGrad)" />
+        <rect x="${xEv}" y="${yEv}" width="${barW}" height="${hEv}" rx="3" fill="url(#tripEvGrad)" />
         <rect x="${xEv}" y="${yEv}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowGreen)" />
-        <rect x="${xEv - 2}" y="${textYEv - 9}" width="${barW + 4}" height="11" rx="2" fill="rgba(6,12,10,0.75)" />
-        <text x="${xEv + barW / 2}" y="${textYEv}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="700" fill="var(--accent)" text-anchor="middle" font-family="var(--mono)">${d.costEv.toFixed(2)}€</text>
+        <rect x="${xEv - 2}" y="${textYEv - 9}" width="${barW + 4}" height="11" rx="2" fill="rgba(6,12,10,0.78)" />
+        <text x="${xEv + barW / 2}" y="${textYEv}" font-size="${((hasEvCost ? 9 : 10) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="700" fill="var(--accent)" text-anchor="middle" font-family="var(--mono)">${d.costEv.toFixed(2)}€</text>
       `;
     }
 
@@ -1320,20 +1488,20 @@ function renderTripsChart() {
         ${evBarSvg}
 
         <!-- Gasolina 95 Bar -->
-        <rect x="${xGas}" y="${yGas}" width="${barW}" height="${hGas}" rx="3.5" fill="url(#tripGasGrad)" />
+        <rect x="${xGas}" y="${yGas}" width="${barW}" height="${hGas}" rx="3" fill="url(#tripGasGrad)" />
         <rect x="${xGas}" y="${yGas}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowGas)" />
-        <rect x="${xGas - 3}" y="${textYGas - 9}" width="${barW + 6}" height="11" rx="2" fill="rgba(6,12,10,0.75)" />
-        <text x="${xGas + barW / 2}" y="${textYGas}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
+        <rect x="${xGas - 3}" y="${textYGas - 9}" width="${barW + 6}" height="11" rx="2" fill="rgba(6,12,10,0.78)" />
+        <text x="${xGas + barW / 2}" y="${textYGas}" font-size="${((hasEvCost ? 9 : 10) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#ff8c73" text-anchor="middle" font-family="var(--mono)">${d.costGas.toFixed(2)}€</text>
 
         <!-- Diésel A Bar -->
-        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="${hDiesel}" rx="3.5" fill="url(#tripDieGrad)" />
+        <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="${hDiesel}" rx="3" fill="url(#tripDieGrad)" />
         <rect x="${xDiesel}" y="${yDiesel}" width="${barW}" height="2" rx="1" fill="#fff" filter="url(#glowDie)" />
-        <rect x="${xDiesel - 3}" y="${textYDiesel - 9}" width="${barW + 6}" height="11" rx="2" fill="rgba(6,12,10,0.75)" />
-        <text x="${xDiesel + barW / 2}" y="${textYDiesel}" font-size="${((hasEvCost ? 9.5 : 10.5) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
+        <rect x="${xDiesel - 3}" y="${textYDiesel - 9}" width="${barW + 6}" height="11" rx="2" fill="rgba(6,12,10,0.78)" />
+        <text x="${xDiesel + barW / 2}" y="${textYDiesel}" font-size="${((hasEvCost ? 9 : 10) * fontScale).toFixed(1)}" class="chart-text-val" font-weight="600" fill="#f5cc7f" text-anchor="middle" font-family="var(--mono)">${d.costDiesel.toFixed(2)}€</text>
 
-        <!-- Labels -->
-        <text x="${cx}" y="${H - 22}" font-size="${(12 * fontScale).toFixed(1)}" class="chart-text-title" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
-        <text x="${cx}" y="${H - 7}" font-size="${(10.5 * fontScale).toFixed(1)}" class="chart-text-sub" fill="var(--text-muted)" text-anchor="middle" font-family="var(--mono)">${d.dist}</text>
+        <!-- Labels (X Axis) -->
+        <text x="${cx}" y="${H - 22}" font-size="${(11.5 * fontScale).toFixed(1)}" class="chart-text-title" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--sans)">${d.title}</text>
+        <text x="${cx}" y="${H - 7}" font-size="${(10 * fontScale).toFixed(1)}" class="chart-text-sub" fill="var(--text-muted)" text-anchor="middle" font-family="var(--mono)">${d.dist}</text>
       </g>
     `;
   });
@@ -1363,7 +1531,7 @@ function renderTripsChart() {
   }
 
   chartBox.innerHTML = `
-    <svg class="trips-svg-canvas" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <svg class="trips-svg-canvas" viewBox="0 0 ${W} ${H}" style="min-width:${W}px; width:${W}px;" preserveAspectRatio="none">
       <defs>
         <linearGradient id="tripEvGrad" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="var(--accent)" />
@@ -1402,6 +1570,11 @@ function renderTripsChart() {
       ${dotsSvg}
     </svg>
   `;
+
+  // Auto-scroll to end so user sees newest data when overflowed
+  setTimeout(() => {
+    chartBox.scrollLeft = chartBox.scrollWidth;
+  }, 50);
 }
 
 // --- AUTO TRIP RECORDER ENGINE & SIMULATOR ---
@@ -1514,6 +1687,45 @@ function initAutoTripRecorder() {
       showToast(`⇅ Orden: ${sortLabels[sortSelect.value] || sortSelect.value}`);
     });
   }
+
+  // Chart Interactive Grouping Pills Listener
+  const chartPillsRow = document.getElementById('trips-chart-group-pills');
+  if (chartPillsRow) {
+    chartPillsRow.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chart-pill-btn');
+      if (!btn) return;
+      STATE.chartGroupMode = btn.dataset.group || 'auto';
+      localStorage.setItem('biguaydi-chart-group', STATE.chartGroupMode);
+      renderTripsChart();
+      const groupLabels = {
+        auto: 'Automática Inteligente',
+        trip: 'Por Viaje Individual',
+        day: 'Por Días',
+        week: 'Por Semanas',
+        month: 'Por Meses',
+        year: 'Por Años'
+      };
+      showToast(`📊 Agrupación: ${groupLabels[STATE.chartGroupMode] || STATE.chartGroupMode}`);
+    });
+  }
+
+  // Chart Full Expand / Collapse Button Listener
+  const btnChartExpand = document.getElementById('btn-chart-expand');
+  if (btnChartExpand) {
+    btnChartExpand.addEventListener('click', () => {
+      STATE.chartExpanded = !STATE.chartExpanded;
+      localStorage.setItem('biguaydi-chart-expanded', String(STATE.chartExpanded));
+      renderTripsChart();
+      showToast(STATE.chartExpanded ? '↔ Gráfico desplegado al completo (desliza horizontalmente)' : '⇤ Gráfico replegado y ajustado');
+    });
+  }
+
+  // Auto-resize chart on orientation change or window resize
+  window.addEventListener('resize', () => {
+    if (STATE.view === 'trips') {
+      renderTripsChart();
+    }
+  });
 
   // Interactive CO2 curiosity rotation on tap
   const btnCo2Card = document.getElementById('btn-next-co2-fact');

@@ -849,8 +849,26 @@
             <div class="trips-chart-header">
               <div>
                 <span class="overline">DINÁMICA DE COSTE Y ENERGÍA POR VIAJE</span>
-                <h3 style="margin-top:2px;">Comparativa Económica por Trayecto</h3>
+                <h3 style="margin-top:2px;" id="trips-chart-heading">Comparativa Económica por Trayecto</h3>
               </div>
+
+              <!-- CONTROLES INTERACTIVOS DE AGRUPACIÓN Y DESPLIEGUE -->
+              <div class="trips-chart-controls">
+                <div class="chart-group-pills" id="trips-chart-group-pills">
+                  <span class="chart-group-label">Agrupar:</span>
+                  <button type="button" class="chart-pill-btn active" data-group="auto" title="Agrupación automática inteligente según pantalla">Auto</button>
+                  <button type="button" class="chart-pill-btn" data-group="trip" title="Ver cada trayecto individual">Viajes</button>
+                  <button type="button" class="chart-pill-btn" data-group="day" title="Agrupar por días">Días</button>
+                  <button type="button" class="chart-pill-btn" data-group="week" title="Agrupar por semanas">Semanas</button>
+                  <button type="button" class="chart-pill-btn" data-group="month" title="Agrupar por meses">Meses</button>
+                  <button type="button" class="chart-pill-btn" data-group="year" title="Agrupar por años">Años</button>
+                </div>
+                <button type="button" class="chart-expand-btn" id="btn-chart-expand" title="Desplegar todo el historial en ancho completo">
+                  <span class="expand-icon">↔</span>
+                  <span class="expand-text">Desplegar todo</span>
+                </button>
+              </div>
+
               <div class="trips-chart-legend">
                 <span class="legend-item" id="trips-legend-ev-cost" style="display:none;"><span class="legend-dot" style="background:var(--accent); box-shadow:0 0 6px var(--accent);"></span> Coste EV (€)</span>
                 <span class="legend-item"><span class="legend-dot" style="background:#ff8c73; box-shadow:0 0 6px #ff8c73;"></span> Gasolina 95 (€)</span>
@@ -859,7 +877,7 @@
               </div>
             </div>
 
-            <!-- SVG DYNAMIC GRAPH -->
+            <!-- SVG DYNAMIC GRAPH (CON SCROLL HORIZONTAL CUANDO DESBORDA O SE DESPLIEGA) -->
             <div class="trips-svg-container" id="trips-chart-container">
               <!-- Rendered dynamically by app.js -->
             </div>
