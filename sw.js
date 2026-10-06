@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v37-compact-trips-list-view';
+const CACHE = 'biguaydi-v38-ultra-compact-inline-list';
 const ASSETS = [
   './',
   './index.html',

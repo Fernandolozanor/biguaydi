@@ -2011,38 +2011,49 @@ body[data-size="5"] {
   background: var(--panel-card);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-sm);
-  padding: 8px 14px;
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  padding: 8px 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .trip-compact-row:hover {
-  border-color: rgba(var(--accent-rgb), 0.4);
-  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(var(--accent-rgb), 0.45);
+  background: rgba(255, 255, 255, 0.025);
   transform: translateX(2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
-.compact-row-main {
+/* Columna izquierda: Icono + 2 líneas inline de información */
+.compact-left-col {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
 
 .compact-cat-icon {
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
   flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.compact-info-block {
+.compact-text-block {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
+  flex: 1;
 }
 
-.compact-title-line {
+/* Línea 1: Título y fecha en línea */
+.compact-line-1 {
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -2056,6 +2067,7 @@ body[data-size="5"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.2px;
 }
 
 .compact-date {
@@ -2064,77 +2076,83 @@ body[data-size="5"] {
   font-family: var(--mono);
 }
 
-.compact-sub-line {
+/* Línea 2: Métricas físicas en línea con pastillas sutiles */
+.compact-line-2 {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
-  color: var(--text-muted);
-  font-family: var(--mono);
   flex-wrap: wrap;
 }
 
-.compact-metric b {
-  color: var(--text);
-}
-
-.compact-dot {
-  color: var(--text-dim);
-}
-
-.compact-duration {
+.compact-pill {
+  font-family: var(--mono);
+  font-size: 11px;
   color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  line-height: 1.25;
 }
 
-.compact-row-financial {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-shrink: 0;
+.compact-pill b {
+  color: var(--text);
+  font-weight: 700;
 }
 
-.compact-cost-badge {
+/* Columna derecha: Gasto y ahorro sobre botones de acción */
+.compact-right-col {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-.compact-cost-num {
+/* Fila superior derecha: Pastillas de Gasto y Ahorro */
+.compact-finance-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-badge-ev {
   font-family: var(--mono);
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  padding: 1px 7px;
+  border-radius: 4px;
+  line-height: 1.3;
 }
 
-.compact-save-badge {
+.compact-badge-save {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: #ff8c73;
+  background: rgba(255, 140, 115, 0.1);
+  border: 1px solid rgba(255, 140, 115, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
+  line-height: 1.3;
 }
 
+/* Fila inferior derecha: Botones de reordenar, editar y borrar */
 .compact-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .compact-actions .trip-action-btn {
-  width: 26px;
-  height: 26px;
-  font-size: 11px;
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
   padding: 0;
-}
-
-.trip-sort-select:focus,
-.trip-sort-select:hover {
-  border-color: var(--accent);
-}
-
-.trip-sort-select option {
-  background: #0f1c16;
-  color: #fff;
+  border-radius: 4px;
 }
 
 /* TRIP CARDS - SPACIOUS, HIGH-READABILITY LAYOUT */

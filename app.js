@@ -1030,30 +1030,33 @@ function renderTrips() {
 
           return `
             <div class="trip-compact-row ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="true">
-              <div class="compact-row-main">
+              <!-- COLUMNA IZQUIERDA: ICONO + 2 LÍNEAS DE DATOS EN LÍNEA -->
+              <div class="compact-left-col">
                 <span class="compact-cat-icon" title="${catObj.label}">${catObj.icon}</span>
-                <div class="compact-info-block">
-                  <div class="compact-title-line">
+                <div class="compact-text-block">
+                  <!-- LÍNEA 1: TÍTULO Y FECHA EN LÍNEA -->
+                  <div class="compact-line-1">
                     <b class="compact-title">${trip.title}</b>
                     <span class="compact-date">📅 ${trip.date}</span>
                   </div>
-                  <div class="compact-sub-line">
-                    <span class="compact-metric"><b>${trip.distance.toFixed(1)}</b> km</span>
-                    <span class="compact-dot">·</span>
-                    <span class="compact-metric"><b>${trip.energy.toFixed(2)}</b> kWh</span>
-                    <span class="compact-dot">·</span>
-                    <span class="compact-metric"><b>${trip.avgWh}</b> Wh/km</span>
-                    <span class="compact-dot">·</span>
-                    <span class="compact-duration">⏱️ ${trip.duration}</span>
+                  <!-- LÍNEA 2: MÉTRICAS FÍSICAS EN LÍNEA -->
+                  <div class="compact-line-2">
+                    <span class="compact-pill"><b>${trip.distance.toFixed(1)}</b> km</span>
+                    <span class="compact-pill"><b>${trip.energy.toFixed(2)}</b> kWh</span>
+                    <span class="compact-pill"><b>${trip.avgWh}</b> Wh/km</span>
+                    <span class="compact-pill">⏱️ ${trip.duration}</span>
                   </div>
                 </div>
               </div>
 
-              <div class="compact-row-financial">
-                <div class="compact-cost-badge">
-                  <span class="compact-cost-num">${tripCostEv.toFixed(2)}€</span>
-                  <span class="compact-save-badge">-${tripSavingsGas.toFixed(2)}€</span>
+              <!-- COLUMNA DERECHA: GASTO Y AHORRO SOBRE BOTONES DE ACCIÓN -->
+              <div class="compact-right-col">
+                <!-- LÍNEA SUPERIOR DERECHA: GASTO Y AHORRO -->
+                <div class="compact-finance-pills">
+                  <span class="compact-badge-ev" title="Coste de la carga">${tripCostEv.toFixed(2)} €</span>
+                  <span class="compact-badge-save" title="Ahorro frente a gasolina">-${tripSavingsGas.toFixed(2)} €</span>
                 </div>
+                <!-- LÍNEA INFERIOR DERECHA: BOTONES DE ACCIÓN (SUBIR, BAJAR, EDITAR, BORRAR) -->
                 <div class="compact-actions">
                   <button class="trip-action-btn btn-move-up" data-id="${trip.id}" title="Subir orden" type="button" ${idx === 0 ? 'disabled style="opacity:0.35;"' : ''}>▲</button>
                   <button class="trip-action-btn btn-move-down" data-id="${trip.id}" title="Bajar orden" type="button" ${idx === displayedTrips.length - 1 ? 'disabled style="opacity:0.35;"' : ''}>▼</button>
