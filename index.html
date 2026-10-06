@@ -889,17 +889,32 @@
               <span class="overline">REGISTRO CRONOLÓGICO</span>
               <h3 style="margin-top:2px;">Detalle de Trayectos</h3>
             </div>
-            <!-- SELECTOR DE ORDENACIÓN / ANTIGÜEDAD -->
-            <div class="trip-sort-wrapper">
-              <label for="trip-sort-select" class="trip-sort-label">⇅ Ordenar:</label>
-              <select id="trip-sort-select" class="trip-sort-select" title="Cambiar orden de la lista de trayectos">
-                <option value="recent">⏱️ Más recientes primero</option>
-                <option value="oldest">⏳ Más antiguos primero</option>
-                <option value="custom">✋ Orden manual (personalizado)</option>
-                <option value="dist-desc">📏 Mayor distancia</option>
-                <option value="dist-asc">📐 Menor distancia</option>
-                <option value="savings-desc">💰 Mayor ahorro</option>
-              </select>
+            
+            <div class="trips-toolbar-actions">
+              <!-- SELECTOR DE VISTA: COMPLETA vs COMPACTA (MODO LISTA) -->
+              <div class="trip-view-toggle" id="trip-view-toggle" role="group" aria-label="Modo de visualización de trayectos">
+                <button type="button" class="trip-view-btn active" data-view="full" title="Vista completa de tarjetas con métricas detalladas">
+                  <span class="view-btn-icon">📑</span>
+                  <span class="view-btn-text">Completa</span>
+                </button>
+                <button type="button" class="trip-view-btn" data-view="compact" title="Vista compacta resumida en modo lista vertical">
+                  <span class="view-btn-icon">☰</span>
+                  <span class="view-btn-text">Compacta</span>
+                </button>
+              </div>
+
+              <!-- SELECTOR DE ORDENACIÓN / ANTIGÜEDAD -->
+              <div class="trip-sort-wrapper">
+                <label for="trip-sort-select" class="trip-sort-label">⇅ Orden:</label>
+                <select id="trip-sort-select" class="trip-sort-select" title="Cambiar orden de la lista de trayectos">
+                  <option value="recent">⏱️ Más recientes</option>
+                  <option value="oldest">⏳ Más antiguos</option>
+                  <option value="custom">✋ Manual</option>
+                  <option value="dist-desc">📏 Mayor distancia</option>
+                  <option value="dist-asc">📐 Menor distancia</option>
+                  <option value="savings-desc">💰 Mayor ahorro</option>
+                </select>
+              </div>
             </div>
           </div>
 

@@ -1908,13 +1908,63 @@ body[data-size="5"] {
   gap: 12px;
 }
 
+.trips-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* TRIP VIEW MODE TOGGLE (COMPLETA vs COMPACTA LISTA) */
+.trip-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--panel-card);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+
+.trip-view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  line-height: 1.2;
+}
+
+.trip-view-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.trip-view-btn.active {
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--accent);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.2);
+}
+
+.trip-view-btn .view-btn-icon {
+  font-size: 12px;
+}
+
 .trip-sort-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
   background: var(--panel-card);
   border: 1px solid var(--panel-border);
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
 }
 
@@ -1932,12 +1982,149 @@ body[data-size="5"] {
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text);
   font-family: var(--font);
-  font-size: 12.5px;
-  padding: 5px 10px;
+  font-size: 12px;
+  padding: 4px 8px;
   border-radius: 6px;
   outline: none;
   cursor: pointer;
   transition: border-color 0.2s ease;
+}
+
+.trip-sort-select:focus,
+.trip-sort-select:hover {
+  border-color: var(--accent);
+}
+
+/* VISTA COMPACTA EN LISTA (OPTIMIZADA PARA MÁXIMO ESPACIO EN VERTICAL) */
+.trips-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.trip-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--panel-card);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.trip-compact-row:hover {
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: rgba(255, 255, 255, 0.02);
+  transform: translateX(2px);
+}
+
+.compact-row-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.compact-cat-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.compact-info-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.compact-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compact-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compact-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.compact-sub-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  flex-wrap: wrap;
+}
+
+.compact-metric b {
+  color: var(--text);
+}
+
+.compact-dot {
+  color: var(--text-dim);
+}
+
+.compact-duration {
+  color: var(--text-muted);
+}
+
+.compact-row-financial {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.compact-cost-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.compact-cost-num {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.compact-save-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: #ff8c73;
+}
+
+.compact-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.compact-actions .trip-action-btn {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+  padding: 0;
 }
 
 .trip-sort-select:focus,

@@ -86,6 +86,7 @@ const STATE = {
   customDateFrom: localStorage.getItem('biguaydi-trip-date-from') || '',
   customDateTo: localStorage.getItem('biguaydi-trip-date-to') || '',
   tripSort: localStorage.getItem('biguaydi-trip-sort') || 'recent',
+  tripViewMode: localStorage.getItem('biguaydi-trip-view-mode') || 'full', // 'full' or 'compact'
   chartGroupMode: localStorage.getItem('biguaydi-chart-group') || 'auto', // auto, trip, day, week, month, year
   chartExpanded: localStorage.getItem('biguaydi-chart-expanded') === 'true',
   // Loaded from cache or default values for Dolphin Surf
@@ -989,6 +990,13 @@ function renderTrips() {
 
   const displayedTrips = filtered;
 
+  // Sync View Mode Toggle Buttons (Full vs Compact)
+  const viewToggleBtns = document.querySelectorAll('#trip-view-toggle .trip-view-btn');
+  const currentViewMode = STATE.tripViewMode || 'full';
+  viewToggleBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === currentViewMode);
+  });
+
   // Render List of Trip Cards
   if (displayedTrips.length === 0) {
     const periodLabels = {
@@ -1008,7 +1016,86 @@ function renderTrips() {
         <p style="font-size:12.5px; margin-top:4px;">${activeCat === 'all' ? 'Prueba seleccionando "Todos" en el periodo o pulsa "Simular y Probar Trayecto".' : 'No hay viajes categorizados como ' + (TRIP_CATEGORIES[activeCat]?.label || activeCat) + ' en ' + periodText + '.'}</p>
       </div>
     `;
+  } else if (currentViewMode === 'compact') {
+    // VISTA COMPACTA RESUMIDA (MODO LISTA VERTICAL ULTRA-OPTIMIZADA EN ESPACIO)
+    container.innerHTML = `
+      <div class="trips-compact-list">
+        ${displayedTrips.map((trip, idx) => {
+          const tripCostPerKwh = getEffectiveElectricityPrice(trip);
+          const tripCostEv = trip.energy * tripCostPerKwh;
+          const tripCostGas = (trip.distance / 100) * iceCons * gasPrice;
+          const tripSavingsGas = Math.max(0, tripCostGas - tripCostEv);
+          const catKey = trip.category || 'trabajo';
+          const catObj = TRIP_CATEGORIES[catKey] || TRIP_CATEGORIES.trabajo;
+
+          return `
+            <div class="trip-compact-row ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="true">
+              <div class="compact-row-main">
+                <span class="compact-cat-icon" title="${catObj.label}">${catObj.icon}</span>
+                <div class="compact-info-block">
+                  <div class="compact-title-line">
+                    <b class="compact-title">${trip.title}</b>
+                    <span class="compact-date">📅 ${trip.date}</span>
+                  </div>
+                  <div class="compact-sub-line">
+                    <span class="compact-metric"><b>${trip.distance.toFixed(1)}</b> km</span>
+                    <span class="compact-dot">·</span>
+                    <span class="compact-metric"><b>${trip.energy.toFixed(2)}</b> kWh</span>
+                    <span class="compact-dot">·</span>
+                    <span class="compact-metric"><b>${trip.avgWh}</b> Wh/km</span>
+                    <span class="compact-dot">·</span>
+                    <span class="compact-duration">⏱️ ${trip.duration}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="compact-row-financial">
+                <div class="compact-cost-badge">
+                  <span class="compact-cost-num">${tripCostEv.toFixed(2)}€</span>
+                  <span class="compact-save-badge">-${tripSavingsGas.toFixed(2)}€</span>
+                </div>
+                <div class="compact-actions">
+                  <button class="trip-action-btn btn-move-up" data-id="${trip.id}" title="Subir orden" type="button" ${idx === 0 ? 'disabled style="opacity:0.35;"' : ''}>▲</button>
+                  <button class="trip-action-btn btn-move-down" data-id="${trip.id}" title="Bajar orden" type="button" ${idx === displayedTrips.length - 1 ? 'disabled style="opacity:0.35;"' : ''}>▼</button>
+                  <button class="trip-action-btn btn-edit-trip" data-id="${trip.id}" title="Editar trayecto" type="button">✏️</button>
+                  <button class="trip-action-btn btn-delete-trip" data-id="${trip.id}" title="Eliminar trayecto" type="button">🗑️</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    // Event delegation for reordering, editing, and deleting
+    container.onclick = (e) => {
+      const btnEdit = e.target.closest('.btn-edit-trip');
+      const btnDelete = e.target.closest('.btn-delete-trip');
+      const btnUp = e.target.closest('.btn-move-up');
+      const btnDown = e.target.closest('.btn-move-down');
+
+      if (btnEdit) {
+        e.preventDefault();
+        const id = Number(btnEdit.dataset.id);
+        openEditTripModal(id);
+      } else if (btnDelete) {
+        e.preventDefault();
+        const id = Number(btnDelete.dataset.id);
+        deleteTrip(id);
+      } else if (btnUp) {
+        e.preventDefault();
+        const id = Number(btnUp.dataset.id);
+        moveTrip(id, -1);
+      } else if (btnDown) {
+        e.preventDefault();
+        const id = Number(btnDown.dataset.id);
+        moveTrip(id, 1);
+      }
+    };
+
+    initTripDragAndDrop();
   } else {
+    // VISTA COMPLETA (TARJETAS DETALLADAS CON MÉTRICAS SEPARADAS Y AUDITORÍA ECONÓMICA DUAL)
     container.innerHTML = displayedTrips.map((trip, idx) => {
       const tripCostPerKwh = getEffectiveElectricityPrice(trip);
       const tripCostEv = trip.energy * tripCostPerKwh;
@@ -1685,6 +1772,23 @@ function initAutoTripRecorder() {
         'savings-desc': 'Mayor ahorro'
       };
       showToast(`⇅ Orden: ${sortLabels[sortSelect.value] || sortSelect.value}`);
+    });
+  }
+
+  // Trip View Mode Toggle Listener (Completa vs Compacta Resumida)
+  const viewToggleGroup = document.getElementById('trip-view-toggle');
+  if (viewToggleGroup) {
+    viewToggleGroup.addEventListener('click', (e) => {
+      const btn = e.target.closest('.trip-view-btn');
+      if (!btn) return;
+      STATE.tripViewMode = btn.dataset.view || 'full';
+      localStorage.setItem('biguaydi-trip-view-mode', STATE.tripViewMode);
+      renderTrips();
+      const modeLabels = {
+        full: '📑 Vista completa de tarjetas',
+        compact: '☰ Vista compacta en lista (ahorro vertical)'
+      };
+      showToast(modeLabels[STATE.tripViewMode] || 'Modo de vista cambiado');
     });
   }
 

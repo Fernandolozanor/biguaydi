@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v36-interactive-trips-chart';
+const CACHE = 'biguaydi-v37-compact-trips-list-view';
 const ASSETS = [
   './',
   './index.html',
