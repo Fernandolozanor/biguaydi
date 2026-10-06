@@ -1,6 +1,52 @@
 /* Bi-guay-Di v2.0 - Core High-Tech Architecture */
 import { SecureVault } from './crypto-vault.js';
 
+// Format real calendar date as "DD/MM/YYYY, HH:mm"
+export function formatRealTripDate(dateObj) {
+  const d = (dateObj instanceof Date && !isNaN(dateObj.getTime())) ? dateObj : new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year}, ${hours}:${minutes}`;
+}
+
+// Parse date string into epoch timestamp milliseconds
+export function parseDateStringToTimestamp(str) {
+  if (!str || typeof str !== 'string') return 0;
+  const raw = str.trim();
+
+  // Match DD/MM/YYYY, HH:mm or DD/MM/YYYY HH:mm
+  const dmyMatch = raw.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})(?:[,\s]+(\d{1,2}):(\d{2}))?/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const month = parseInt(dmyMatch[2], 10) - 1;
+    const year = parseInt(dmyMatch[3], 10);
+    const hours = dmyMatch[4] !== undefined ? parseInt(dmyMatch[4], 10) : 12;
+    const minutes = dmyMatch[5] !== undefined ? parseInt(dmyMatch[5], 10) : 0;
+    const parsedDate = new Date(year, month, day, hours, minutes, 0, 0);
+    if (!isNaN(parsedDate.getTime())) return parsedDate.getTime();
+  }
+
+  // Match ISO YYYY-MM-DD or datetime-local YYYY-MM-DDTHH:mm
+  const isoMatch = raw.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})(?:[T\s]+(\d{1,2}):(\d{2}))?/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    const hours = isoMatch[4] !== undefined ? parseInt(isoMatch[4], 10) : 12;
+    const minutes = isoMatch[5] !== undefined ? parseInt(isoMatch[5], 10) : 0;
+    const parsedDate = new Date(year, month, day, hours, minutes, 0, 0);
+    if (!isNaN(parsedDate.getTime())) return parsedDate.getTime();
+  }
+
+  const standardParse = Date.parse(raw);
+  if (!isNaN(standardParse)) return standardParse;
+
+  return 0;
+}
+
 // --- DATA STRUCTURE & STATE ---
 const STATE = {
   theme: localStorage.getItem('biguaydi-theme') || 'original',
@@ -69,13 +115,48 @@ const STATE = {
   trips: (function() {
     try {
       const saved = localStorage.getItem('biguaydi-trips');
+      let list = [];
       if (saved) {
-        const list = JSON.parse(saved);
-        if (Array.isArray(list)) {
-          return list.map(t => ({ category: 'trabajo', ...t }));
-        }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) list = parsed;
       }
-      return [];
+
+      let mutated = false;
+      const now = new Date();
+      const migrated = list.map((t, idx) => {
+        const copy = { category: 'trabajo', ...t };
+        // Deduce timestamp if missing
+        if (!copy.timestamp || isNaN(Number(copy.timestamp))) {
+          if (typeof copy.id === 'number' && copy.id > 1600000000000) {
+            copy.timestamp = copy.id;
+          } else {
+            // Heuristic based on index or existing date string
+            copy.timestamp = now.getTime() - (idx * 3600000 * 4);
+          }
+          mutated = true;
+        } else {
+          copy.timestamp = Number(copy.timestamp);
+        }
+
+        // Convert relative "Hoy" / "Ayer" or missing date to real formatted calendar date
+        const dStr = (typeof copy.date === 'string') ? copy.date.trim() : '';
+        const dLower = dStr.toLowerCase();
+        if (!dStr || dLower.includes('hoy') || dLower.includes('ayer')) {
+          const tripDateObj = new Date(copy.timestamp);
+          copy.date = formatRealTripDate(tripDateObj);
+          mutated = true;
+        }
+
+        return copy;
+      });
+
+      if (mutated && migrated.length > 0) {
+        try {
+          localStorage.setItem('biguaydi-trips', JSON.stringify(migrated));
+        } catch (_) {}
+      }
+
+      return migrated;
     } catch (_) {
       return [];
     }
@@ -645,8 +726,21 @@ export function getRandomCo2Fact(kg) {
 export function getTripTimestamp(trip) {
   if (!trip) return 0;
 
-  // 1. If explicit user/date string exists, parse it first to respect the visible date & time
+  // 1. Explicit millisecond timestamp (authoritative)
+  if (trip.timestamp && !isNaN(Number(trip.timestamp)) && Number(trip.timestamp) > 0) {
+    return Number(trip.timestamp);
+  }
+
+  // 2. Fallback to numeric id if epoch timestamp (> 1600000000000)
+  if (typeof trip.id === 'number' && trip.id > 1600000000000) {
+    return trip.id;
+  }
+
+  // 3. If explicit string date exists, parse it
   if (typeof trip.date === 'string' && trip.date.trim()) {
+    const parsed = parseDateStringToTimestamp(trip.date);
+    if (parsed > 0) return parsed;
+
     const raw = trip.date.trim();
     const dLower = raw.toLowerCase();
 
@@ -668,7 +762,7 @@ export function getTripTimestamp(trip) {
       return new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), hours, minutes, 0, 0).getTime();
     }
 
-    // Try parsing Spanish dates like "02 Oct" or "02 Oct, 14:30"
+    // Spanish abbreviations like "02 Oct" or "02 Oct, 14:30"
     const spanishMonths = {
       ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
       jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11
@@ -681,22 +775,6 @@ export function getTripTimestamp(trip) {
         return new Date(now.getFullYear(), spanishMonths[mStr], day, hours, minutes, 0, 0).getTime();
       }
     }
-
-    // Standard ISO or standard Date.parse
-    const parsed = Date.parse(raw);
-    if (!isNaN(parsed)) {
-      return parsed;
-    }
-  }
-
-  // 2. Explicit millisecond timestamp
-  if (trip.timestamp && !isNaN(Number(trip.timestamp))) {
-    return Number(trip.timestamp);
-  }
-
-  // 3. Fallback to numeric id if epoch timestamp (> 1600000000000)
-  if (typeof trip.id === 'number' && trip.id > 1600000000000) {
-    return trip.id;
   }
 
   // 4. Numeric id fallback
@@ -1487,11 +1565,13 @@ function initAutoTripRecorder() {
         localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
       }, 3800);
 
+      const nowTs = Date.now();
       const newTrip = {
-        id: Date.now(),
+        id: nowTs,
+        timestamp: nowTs,
         title: sample.title,
         category: sample.category || 'trabajo',
-        date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        date: formatRealTripDate(new Date(nowTs)),
         distance: sample.dist,
         energy: Number(((sample.dist * sample.wh) / 1000).toFixed(2)),
         avgWh: sample.wh,
@@ -1518,11 +1598,12 @@ function initAutoTripRecorder() {
   if (btnReset) {
     btnReset.addEventListener('click', () => {
       if (confirm('¿Restablecer el historial de trayectos a los valores iniciales de prueba?')) {
+        const baseNow = Date.now();
         STATE.trips = [
-          { id: 1, title: 'Trabajo ➔ Casa', category: 'trabajo', date: 'Hoy, 18:20', distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
-          { id: 2, title: 'Casa ➔ Gimnasio', category: 'personal', date: 'Hoy, 07:45', distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
-          { id: 3, title: 'Ruta Clientes Centro', category: 'chofer', date: 'Ayer', distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
-          { id: 4, title: 'Compras & Supermercado', category: 'compras', date: '02 Oct', distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
+          { id: baseNow - 3600000 * 2, timestamp: baseNow - 3600000 * 2, title: 'Trabajo ➔ Casa', category: 'trabajo', date: formatRealTripDate(new Date(baseNow - 3600000 * 2)), distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
+          { id: baseNow - 3600000 * 8, timestamp: baseNow - 3600000 * 8, title: 'Casa ➔ Gimnasio', category: 'personal', date: formatRealTripDate(new Date(baseNow - 3600000 * 8)), distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
+          { id: baseNow - 86400000, timestamp: baseNow - 86400000, title: 'Ruta Clientes Centro', category: 'chofer', date: formatRealTripDate(new Date(baseNow - 86400000)), distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
+          { id: baseNow - 86400000 * 3, timestamp: baseNow - 86400000 * 3, title: 'Compras & Supermercado', category: 'compras', date: formatRealTripDate(new Date(baseNow - 86400000 * 3)), distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
         ];
         localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
         renderTrips();
@@ -1573,19 +1654,23 @@ function initAutoTripRecorder() {
         const energy = Number(((dist * wh) / 1000).toFixed(2));
         const cat = document.getElementById('edit-trip-category')?.value || 'trabajo';
 
-        const rawDate = document.getElementById('edit-trip-date').value.trim() || 'Hoy';
+        const rawDate = document.getElementById('edit-trip-date').value.trim();
+        const parsedTs = parseDateStringToTimestamp(rawDate);
+        const resolvedTs = parsedTs > 0 ? parsedTs : (STATE.trips[tripIndex].timestamp || Date.now());
+        const formattedDate = parsedTs > 0 ? formatRealTripDate(new Date(parsedTs)) : (rawDate || formatRealTripDate(new Date(resolvedTs)));
+
         const updatedTrip = {
           ...STATE.trips[tripIndex],
           title: document.getElementById('edit-trip-title').value.trim() || 'Ruta',
           category: cat,
-          date: rawDate,
+          date: formattedDate,
+          timestamp: resolvedTs,
           distance: dist,
           avgWh: wh,
           energy: energy,
           duration: document.getElementById('edit-trip-duration').value.trim() || `${Math.round(dist * 1.5)} min`,
           isNew: false
         };
-        updatedTrip.timestamp = getTripTimestamp(updatedTrip);
 
         STATE.trips[tripIndex] = updatedTrip;
 
@@ -2003,11 +2088,13 @@ export async function syncVehicleTelemetry(isAutoBoot = false) {
       const delta = Number((Number(rt.total_mileage) - prevOdo).toFixed(1));
       if (delta >= 0.3) {
         const avgWh = Math.round((STATE.vehicle.avgConsumption50km || 13.8) * 10);
+        const autoTs = Date.now();
         const autoTrip = {
-          id: Date.now(),
+          id: autoTs,
+          timestamp: autoTs,
           title: `Ruta Detectada (${delta} km)`,
           category: 'trabajo',
-          date: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          date: formatRealTripDate(new Date(autoTs)),
           distance: delta,
           energy: Number(((delta * avgWh) / 1000).toFixed(2)),
           avgWh: avgWh,
