@@ -89,6 +89,13 @@ const STATE = {
   tripViewMode: localStorage.getItem('biguaydi-trip-view-mode') || 'full', // 'full' or 'compact'
   chartGroupMode: localStorage.getItem('biguaydi-chart-group') || 'auto', // auto, trip, day, week, month, year
   chartExpanded: localStorage.getItem('biguaydi-chart-expanded') === 'true',
+  vehicleSectionOrder: (function() {
+    try {
+      const saved = localStorage.getItem('biguaydi-vehicle-sections-order');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return ['sec-overview', 'sec-battery-charging', 'sec-security-doors', 'sec-climate', 'sec-tires', 'sec-gps-location'];
+  })(),
   // Loaded from cache or default values for Dolphin Surf
   vehicle: (function() {
     try {
@@ -102,17 +109,29 @@ const STATE = {
       speed: 0,
       power: 0.0,
       charging: false,
+      chargeRemainingTime: null, // min
+      chargeGunConnected: false,
       gear: 'P',
       driveStatus: 'Estacionado (P)',
       driveMode: 'ECO Inteligente',
       tempCabin: 21.5,
       tempExt: 19.0,
-      soh: 99.2,
       voltageHV: 348.5,
       voltage12v: 13.6,
       avgConsumption50km: 13.8, // kWh/100km
-      lifetimeConsumption: 14.2, // kWh/100km
-      tires: { fl: 2.5, fr: 2.5, rl: 2.6, rr: 2.6 }
+      tires: { fl: null, fr: null, rl: null, rr: null }, // real pressures in bar
+      tiresWarning: false,
+      // Security & Locks
+      doorsLocked: true,
+      doorStatus: { fl: false, fr: false, rl: false, rr: false }, // true = open
+      trunkOpen: false,
+      windowsOpen: false,
+      alarmArmed: true,
+      // Climate
+      hvacActive: false,
+      hvacTemp: 22.0,
+      // Location & GPS
+      gps: { lat: null, lon: null, address: 'Cargando ubicación...', resolvedAt: null }
     };
   })(),
   trips: (function() {
@@ -608,6 +627,225 @@ export function renderSolarHomeScheme() {
 }
 
 // --- RENDER VEHICLE HUD & METRICS ---
+function renderHighTechRadarMap(lat, lon) {
+  const canvas = document.getElementById('gps-hightech-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  // Background clear with dark cyan grid
+  ctx.fillStyle = '#040b08';
+  ctx.fillRect(0, 0, w, h);
+
+  // High-Tech Grid lines
+  ctx.strokeStyle = 'rgba(76, 224, 210, 0.08)';
+  ctx.lineWidth = 1;
+  const gridSize = 24;
+  for (let x = 0; x <= w; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= h; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // Concentric radar scan circles
+  ctx.strokeStyle = 'rgba(76, 224, 210, 0.22)';
+  ctx.lineWidth = 1.2;
+  [35, 70, 105, 140].forEach(r => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // Cross lines
+  ctx.strokeStyle = 'rgba(76, 224, 210, 0.35)';
+  ctx.beginPath();
+  ctx.moveTo(cx - 160, cy);
+  ctx.lineTo(cx + 160, cy);
+  ctx.moveTo(cx, cy - 85);
+  ctx.lineTo(cx, cy + 85);
+  ctx.stroke();
+
+  // Simulated road vectors around current position for futuristic GPS look
+  ctx.strokeStyle = 'rgba(110, 231, 183, 0.25)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 130, cy - 60);
+  ctx.lineTo(cx - 40, cy - 20);
+  ctx.lineTo(cx + 70, cy + 10);
+  ctx.lineTo(cx + 180, cy + 50);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 60, cy + 70);
+  ctx.lineTo(cx + 20, cy);
+  ctx.lineTo(cx + 80, cy - 65);
+  ctx.stroke();
+
+  // Radar sweep beam animation effect
+  const angle = (Date.now() / 1500) % (Math.PI * 2);
+  const sweepGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140);
+  sweepGrad.addColorStop(0, 'rgba(76, 224, 210, 0.25)');
+  sweepGrad.addColorStop(1, 'rgba(76, 224, 210, 0)');
+  ctx.fillStyle = sweepGrad;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, 140, angle, angle + 0.45);
+  ctx.closePath();
+  ctx.fill();
+
+  // Vehicle target glow
+  const pulseR = 8 + Math.sin(Date.now() / 300) * 3;
+  ctx.fillStyle = 'rgba(76, 224, 210, 0.4)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#4ce0d2';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+async function resolveGpsAddress(lat, lon) {
+  if (!lat || !lon) return;
+  const now = Date.now();
+  // Cache address for 10 minutes to prevent API hammering
+  if (STATE.vehicle.gps.resolvedAt && (now - STATE.vehicle.gps.resolvedAt < 600000) && STATE.vehicle.gps.address) {
+    const el = document.getElementById('tel-gps-address');
+    if (el) el.textContent = STATE.vehicle.gps.address;
+    return;
+  }
+
+  try {
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`, {
+      headers: { 'Accept-Language': 'es' }
+    });
+    if (!resp.ok) throw new Error('Geocoding offline');
+    const data = await resp.json();
+    const addr = data.address || {};
+    const road = addr.road || addr.pedestrian || addr.suburb || 'Ubicación registrada';
+    const city = addr.city || addr.town || addr.village || addr.municipality || 'Madrid';
+    const formatted = `${road}, ${city}`;
+    STATE.vehicle.gps.address = formatted;
+    STATE.vehicle.gps.resolvedAt = now;
+    localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
+    const el = document.getElementById('tel-gps-address');
+    if (el) el.textContent = formatted;
+  } catch (_) {
+    const el = document.getElementById('tel-gps-address');
+    if (el) el.textContent = `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° W`;
+  }
+}
+
+function applyVehicleSectionsOrder() {
+  const container = document.getElementById('vehicle-sections-list');
+  if (!container) return;
+
+  const order = STATE.vehicleSectionOrder || ['sec-overview', 'sec-battery-charging', 'sec-security-doors', 'sec-climate', 'sec-tires', 'sec-gps-location'];
+  order.forEach(secId => {
+    const el = document.getElementById(secId);
+    if (el) container.appendChild(el);
+  });
+}
+
+function initVehicleSectionReorder() {
+  const container = document.getElementById('vehicle-sections-list');
+  if (!container) return;
+
+  const defaultOrder = ['sec-overview', 'sec-battery-charging', 'sec-security-doors', 'sec-climate', 'sec-tires', 'sec-gps-location'];
+
+  const saveCurrentOrder = () => {
+    const cards = Array.from(container.querySelectorAll('.vehicle-section-card'));
+    const newOrder = cards.map(c => c.dataset.section).filter(Boolean);
+    STATE.vehicleSectionOrder = newOrder;
+    localStorage.setItem('biguaydi-vehicle-sections-order', JSON.stringify(newOrder));
+  };
+
+  // 1. Interactive Up and Down Move Buttons (ideal for touch & mobile)
+  container.addEventListener('click', (e) => {
+    const upBtn = e.target.closest('.btn-sec-up');
+    const downBtn = e.target.closest('.btn-sec-down');
+    if (!upBtn && !downBtn) return;
+
+    const card = e.target.closest('.vehicle-section-card');
+    if (!card) return;
+
+    if (upBtn) {
+      const prev = card.previousElementSibling;
+      if (prev && prev.classList.contains('vehicle-section-card')) {
+        container.insertBefore(card, prev);
+        saveCurrentOrder();
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    } else if (downBtn) {
+      const next = card.nextElementSibling;
+      if (next && next.classList.contains('vehicle-section-card')) {
+        container.insertBefore(next, card);
+        saveCurrentOrder();
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  });
+
+  // 2. Drag & Drop on desktop and pointer devices
+  let draggedCard = null;
+
+  container.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('.vehicle-section-card');
+    if (!card) return;
+    draggedCard = card;
+    card.classList.add('dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.section || '');
+    }
+  });
+
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (!draggedCard) return;
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+
+    const targetCard = e.target.closest('.vehicle-section-card');
+    if (!targetCard || targetCard === draggedCard) return;
+
+    const rect = targetCard.getBoundingClientRect();
+    const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+    container.insertBefore(draggedCard, next ? targetCard.nextSibling : targetCard);
+  });
+
+  container.addEventListener('dragend', () => {
+    if (draggedCard) {
+      draggedCard.classList.remove('dragging');
+      draggedCard = null;
+      saveCurrentOrder();
+    }
+  });
+
+  // 3. Reset Button
+  const resetBtn = document.getElementById('btn-reset-vehicle-sections');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      STATE.vehicleSectionOrder = [...defaultOrder];
+      localStorage.setItem('biguaydi-vehicle-sections-order', JSON.stringify(STATE.vehicleSectionOrder));
+      applyVehicleSectionsOrder();
+      showToast('✓ Orden de secciones restaurado');
+    });
+  }
+}
+
 function renderVehicleHUD() {
   const v = STATE.vehicle;
   
@@ -621,10 +859,9 @@ function renderVehicleHUD() {
   if (socVal) socVal.textContent = v.soc;
   if (rangeVal) rangeVal.textContent = v.range;
   if (odoVal) odoVal.textContent = v.odometer.toLocaleString('es-ES');
-  if (consVal) consVal.textContent = v.avgConsumption50km.toFixed(1);
+  if (consVal) consVal.textContent = (v.avgConsumption50km || 13.8).toFixed(1);
 
   if (socRing) {
-    // 2 * PI * r = 2 * PI * 66 approx 415
     const circumference = 415;
     const offset = circumference - (v.soc / 100) * circumference;
     socRing.style.strokeDashoffset = offset;
@@ -654,51 +891,94 @@ function renderVehicleHUD() {
   setEl('tel-gear', v.gear);
   setEl('tel-drive-mode', v.driveMode || 'ECO Inteligente');
 
-  // Gear cluster PRND highlighting
-  const gearPills = document.querySelectorAll('#tel-gear-cluster .gear-pill');
-  gearPills.forEach(p => {
-    p.classList.toggle('active', p.dataset.gear === v.gear);
-  });
+  // Real 50km consumption (replaces fake lifetime)
+  setEl('tel-avg-50km-val', `${(v.avgConsumption50km || 13.8).toFixed(1)} kWh/100km`);
 
-  // Power flux bar calculation (center = 50%)
-  const fluxBar = document.getElementById('tel-flux-bar');
-  if (fluxBar) {
-    if (isCharging) {
-      const pct = Math.min(48, Math.max(8, (Math.abs(v.power) / 60) * 48));
-      fluxBar.style.left = '50%';
-      fluxBar.style.width = `${pct}%`;
-      fluxBar.style.background = 'linear-gradient(90deg, #ffd700, #ff8c73)';
-    } else if (v.power >= 0) {
-      const pct = Math.min(48, (v.power / 60) * 48);
-      fluxBar.style.left = '50%';
-      fluxBar.style.width = `${Math.max(2, pct)}%`;
-      fluxBar.style.background = 'linear-gradient(90deg, #4ce0d2, #6db6ff)';
-    } else {
-      // Regen
-      const pct = Math.min(48, (Math.abs(v.power) / 40) * 48);
-      fluxBar.style.left = `${50 - pct}%`;
-      fluxBar.style.width = `${pct}%`;
-      fluxBar.style.background = 'linear-gradient(90deg, #38ef7d, #11998e)';
-    }
-  }
-
-  setEl('tel-soh', `${v.soh.toFixed(1)}%`);
+  // Section 2: Battery & Charging
+  setEl('tel-soc-val', `${v.soc}%`);
+  setEl('tel-range-val', v.range);
   setEl('tel-volt-hv', `${v.voltageHV.toFixed(1)} V`);
   setEl('tel-volt-12v', `${v.voltage12v.toFixed(1)} V`);
-  setEl('tel-lifetime-cons', `${v.lifetimeConsumption.toFixed(1)} kWh/100km`);
+  setEl('tel-cable-status', v.chargeGunConnected ? '🔌 Conectado' : (v.charging ? '⚡ Conectado' : 'Desconectado'));
+  setEl('tel-charge-status-sub', v.charging ? 'Carga en curso' : (v.chargeGunConnected ? 'Cable enchufado' : 'Listo para cargar'));
+  setEl('tel-time-remaining', v.chargeRemainingTime !== null ? `${v.chargeRemainingTime} min` : (v.charging ? 'Calculando...' : 'N/A (En reposo)'));
+
+  // Section 3: Security & Doors
+  setEl('tel-lock-status', v.doorsLocked ? '🔒 Bloqueado' : '🔓 Desbloqueado');
+  const openDoors = [];
+  if (v.doorStatus?.fl) openDoors.push('Del. Izq');
+  if (v.doorStatus?.fr) openDoors.push('Del. Der');
+  if (v.doorStatus?.rl) openDoors.push('Tras. Izq');
+  if (v.doorStatus?.rr) openDoors.push('Tras. Der');
+  setEl('tel-lock-sub', openDoors.length > 0 ? `Abiertas: ${openDoors.join(', ')}` : (v.doorsLocked ? 'Todas las puertas cerradas y bloqueadas' : 'Puertas cerradas sin bloquear'));
+  
+  setEl('tel-alarm-status', v.alarmArmed ? '🛡️ Armada' : 'Desarmada');
+  setEl('tel-trunk-windows', v.trunkOpen ? '⚠️ Maletero Abierto' : 'Maletero Cerrado');
+  setEl('tel-windows-sub', v.windowsOpen ? 'Ventanillas abiertas' : 'Ventanillas cerradas');
+
+  // Section 4: Climate
+  setEl('tel-hvac-status', v.hvacActive ? '❄️ A/C Activo' : 'Apagado');
+  setEl('tel-hvac-target', `${(v.hvacTemp || 22.0).toFixed(1)}°C`);
   setEl('tel-temp-ext', `${v.tempExt}°C`);
   setEl('tel-temp-cabin', `${v.tempCabin}°C`);
 
-  // Tire pressures (Telemetry page and Dashboard Chassis HUD)
-  setEl('tire-fl', `${v.tires.fl} bar`);
-  setEl('tire-fr', `${v.tires.fr} bar`);
-  setEl('tire-rl', `${v.tires.rl} bar`);
-  setEl('tire-rr', `${v.tires.rr} bar`);
+  // Section 5: Tires & TPMS (Real or default reference with low pressure detection)
+  const warnBanner = document.getElementById('tires-warning-banner');
+  const warnText = document.getElementById('tires-warning-text');
+  let hasLowPressure = !!v.tiresWarning;
 
-  setEl('hud-tire-fl', `${v.tires.fl} bar`);
-  setEl('hud-tire-fr', `${v.tires.fr} bar`);
-  setEl('hud-tire-rl', `${v.tires.rl} bar`);
-  setEl('hud-tire-rr', `${v.tires.rr} bar`);
+  const renderTireWidget = (id, hudId, widgetId, statusId, press) => {
+    const valText = press !== null && press !== undefined ? `${Number(press).toFixed(2)} bar` : '-- bar';
+    setEl(id, valText);
+    setEl(hudId, valText);
+
+    const isLow = press !== null && press !== undefined && Number(press) < 2.10;
+    if (isLow) hasLowPressure = true;
+
+    const widgetEl = document.getElementById(widgetId);
+    const statusEl = document.getElementById(statusId);
+    if (widgetEl) widgetEl.classList.toggle('warning', isLow);
+    if (statusEl) {
+      statusEl.textContent = isLow ? '⚠️ Presión Baja' : 'Normal';
+      statusEl.style.color = isLow ? '#ff8c73' : 'var(--text-muted)';
+    }
+
+    const hudTireEl = document.getElementById(hudId);
+    if (hudTireEl && hudTireEl.parentElement) {
+      hudTireEl.parentElement.style.borderColor = isLow ? '#ff8c73' : '';
+      hudTireEl.style.color = isLow ? '#ff8c73' : '';
+    }
+  };
+
+  renderTireWidget('tire-fl', 'hud-tire-fl', 'tire-widget-fl', 'tire-status-fl', v.tires.fl);
+  renderTireWidget('tire-fr', 'hud-tire-fr', 'tire-widget-fr', 'tire-status-fr', v.tires.fr);
+  renderTireWidget('tire-rl', 'hud-tire-rl', 'tire-widget-rl', 'tire-status-rl', v.tires.rl);
+  renderTireWidget('tire-rr', 'hud-tire-rr', 'tire-widget-rr', 'tire-status-rr', v.tires.rr);
+
+  if (warnBanner) {
+    warnBanner.style.display = hasLowPressure ? 'flex' : 'none';
+    if (warnText && hasLowPressure) {
+      warnText.textContent = '⚠️ Alerta TPMS: Se ha detectado presión baja (<2.1 bar) en uno o más neumáticos.';
+    }
+  }
+
+  // Section 6: GPS & High-Tech Radar Map
+  const lat = v.gps?.lat || 40.4168;
+  const lon = v.gps?.lon || -3.7038;
+  setEl('tel-gps-coords', `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° W`);
+  const extMapLink = document.getElementById('gps-external-map-link');
+  if (extMapLink) {
+    extMapLink.href = `https://www.google.com/maps?q=${lat},${lon}`;
+  }
+
+  if (v.gps?.lat && v.gps?.lon) {
+    resolveGpsAddress(v.gps.lat, v.gps.lon);
+  } else {
+    setEl('tel-gps-address', 'Madrid, España (Posición de Referencia)');
+  }
+
+  renderHighTechRadarMap(lat, lon);
+  applyVehicleSectionsOrder();
 }
 
 let currentCo2FactIndex = -1;
@@ -2399,6 +2679,120 @@ export async function syncVehicleTelemetry(isAutoBoot = false) {
       STATE.vehicle.avgConsumption50km = Number(eg.nearest_energy_consumption.avg_ev_consumption);
     }
 
+    // TPMS Tire pressures
+    const parsePressure = (raw) => {
+      if (raw === undefined || raw === null || raw === '' || isNaN(Number(raw))) return null;
+      let num = Number(raw);
+      if (num <= 0) return null;
+      if (num > 50) num = num / 100; // kPa to bar
+      return Number(num.toFixed(2));
+    };
+
+    const tp = rt.tire_pressure || rt.tire_pressures || rt.tires || {};
+    let flPress = parsePressure(tp.left_front ?? tp.front_left ?? tp.fl ?? rt.left_front_tire_pressure ?? rt.front_left_tire_pressure ?? rt.fl_tire_pressure ?? rt.fl_pressure ?? rt.tire_fl);
+    let frPress = parsePressure(tp.right_front ?? tp.front_right ?? tp.fr ?? rt.right_front_tire_pressure ?? rt.front_right_tire_pressure ?? rt.fr_tire_pressure ?? rt.fr_pressure ?? rt.tire_fr);
+    let rlPress = parsePressure(tp.left_rear ?? tp.rear_left ?? tp.rl ?? rt.left_rear_tire_pressure ?? rt.rear_left_tire_pressure ?? rt.rl_tire_pressure ?? rt.rl_pressure ?? rt.tire_rl);
+    let rrPress = parsePressure(tp.right_rear ?? tp.rear_right ?? tp.rr ?? rt.right_rear_tire_pressure ?? rt.rear_right_tire_pressure ?? rt.rr_tire_pressure ?? rt.rr_pressure ?? rt.tire_rr);
+
+    if (Array.isArray(tp) && tp.length >= 4) {
+      flPress = parsePressure(tp[0]) ?? flPress;
+      frPress = parsePressure(tp[1]) ?? frPress;
+      rlPress = parsePressure(tp[2]) ?? rlPress;
+      rrPress = parsePressure(tp[3]) ?? rrPress;
+    }
+
+    if (flPress !== null) STATE.vehicle.tires.fl = flPress;
+    if (frPress !== null) STATE.vehicle.tires.fr = frPress;
+    if (rlPress !== null) STATE.vehicle.tires.rl = rlPress;
+    if (rrPress !== null) STATE.vehicle.tires.rr = rrPress;
+
+    STATE.vehicle.tiresWarning = Boolean(
+      rt.tire_pressure_warning || rt.tpms_warning || rt.tire_leak_warning ||
+      (STATE.vehicle.tires.fl !== null && STATE.vehicle.tires.fl < 2.10) ||
+      (STATE.vehicle.tires.fr !== null && STATE.vehicle.tires.fr < 2.10) ||
+      (STATE.vehicle.tires.rl !== null && STATE.vehicle.tires.rl < 2.10) ||
+      (STATE.vehicle.tires.rr !== null && STATE.vehicle.tires.rr < 2.10)
+    );
+
+    // Charging cable & remaining time
+    if (rt.charge_gun_status !== undefined) {
+      STATE.vehicle.chargeGunConnected = Boolean(rt.charge_gun_status === 1 || rt.charge_gun_status === true || rt.charge_gun_status === 'connected');
+    } else if (rt.charging) {
+      STATE.vehicle.chargeGunConnected = true;
+    }
+
+    if (rt.charge_remaining_time !== undefined && rt.charge_remaining_time !== null) {
+      STATE.vehicle.chargeRemainingTime = Number(rt.charge_remaining_time);
+    } else if (rt.charging_time_remaining !== undefined && rt.charging_time_remaining !== null) {
+      STATE.vehicle.chargeRemainingTime = Number(rt.charging_time_remaining);
+    } else if (!STATE.vehicle.charging) {
+      STATE.vehicle.chargeRemainingTime = null;
+    }
+
+    // Security & Locks
+    if (rt.doors_locked !== undefined) {
+      STATE.vehicle.doorsLocked = Boolean(rt.doors_locked === 1 || rt.doors_locked === true || rt.doors_locked === 'locked');
+    } else if (rt.door_lock_status !== undefined) {
+      STATE.vehicle.doorsLocked = Boolean(rt.door_lock_status === 1 || rt.door_lock_status === true);
+    }
+
+    if (rt.door_status && typeof rt.door_status === 'object') {
+      STATE.vehicle.doorStatus = {
+        fl: Boolean(rt.door_status.left_front || rt.door_status.fl),
+        fr: Boolean(rt.door_status.right_front || rt.door_status.fr),
+        rl: Boolean(rt.door_status.left_rear || rt.door_status.rl),
+        rr: Boolean(rt.door_status.right_rear || rt.door_status.rr),
+      };
+    }
+
+    if (rt.trunk_status !== undefined) {
+      STATE.vehicle.trunkOpen = Boolean(rt.trunk_status === 1 || rt.trunk_status === true || rt.trunk_status === 'open');
+    } else if (rt.trunk_open !== undefined) {
+      STATE.vehicle.trunkOpen = Boolean(rt.trunk_open);
+    }
+
+    if (rt.windows_status !== undefined) {
+      STATE.vehicle.windowsOpen = Boolean(rt.windows_status === 1 || rt.windows_status === true || rt.windows_status === 'open');
+    } else if (rt.windows_open !== undefined) {
+      STATE.vehicle.windowsOpen = Boolean(rt.windows_open);
+    }
+
+    if (rt.alarm_status !== undefined) {
+      STATE.vehicle.alarmArmed = Boolean(rt.alarm_status === 1 || rt.alarm_status === true || rt.alarm_status === 'armed');
+    } else if (rt.alarm_armed !== undefined) {
+      STATE.vehicle.alarmArmed = Boolean(rt.alarm_armed);
+    }
+
+    // Climate
+    if (rt.hvac_status !== undefined) {
+      STATE.vehicle.hvacActive = Boolean(rt.hvac_status === 1 || rt.hvac_status === true || rt.hvac_status === 'on');
+    } else if (rt.ac_on !== undefined) {
+      STATE.vehicle.hvacActive = Boolean(rt.ac_on);
+    }
+
+    if (rt.ac_temp !== undefined && !isNaN(Number(rt.ac_temp))) {
+      STATE.vehicle.hvacTemp = Number(rt.ac_temp);
+    } else if (rt.target_temp !== undefined && !isNaN(Number(rt.target_temp))) {
+      STATE.vehicle.hvacTemp = Number(rt.target_temp);
+    } else if (rt.hvac_temp !== undefined && !isNaN(Number(rt.hvac_temp))) {
+      STATE.vehicle.hvacTemp = Number(rt.hvac_temp);
+    }
+
+    // GPS Location
+    const gpsLat = rt.latitude ?? rt.lat ?? rt.location?.latitude ?? rt.location?.lat ?? rt.gps?.latitude ?? rt.gps?.lat;
+    const gpsLon = rt.longitude ?? rt.lon ?? rt.lng ?? rt.location?.longitude ?? rt.location?.lng ?? rt.gps?.longitude ?? rt.gps?.lon;
+    if (gpsLat !== undefined && gpsLon !== undefined && !isNaN(Number(gpsLat)) && !isNaN(Number(gpsLon))) {
+      const prevLat = STATE.vehicle.gps?.lat;
+      const prevLon = STATE.vehicle.gps?.lon;
+      STATE.vehicle.gps = STATE.vehicle.gps || {};
+      STATE.vehicle.gps.lat = Number(gpsLat);
+      STATE.vehicle.gps.lon = Number(gpsLon);
+      if (prevLat !== null && prevLon !== null && (Math.abs(prevLat - Number(gpsLat)) > 0.0005 || Math.abs(prevLon - Number(gpsLon)) > 0.0005)) {
+        STATE.vehicle.gps.address = null;
+        STATE.vehicle.gps.resolvedAt = null;
+      }
+    }
+
     localStorage.setItem('biguaydi-vehicle', JSON.stringify(STATE.vehicle));
 
     // Check if odometer has advanced to automatically record completed trip
@@ -2464,6 +2858,7 @@ export function initApp() {
   initAutoTripRecorder();
   initSecurityVault();
   initTractionMonitor();
+  initVehicleSectionReorder();
 
   // Top sync badge click listener (quick sync from anywhere)
   const topSyncBadge = document.getElementById('top-sync-badge');

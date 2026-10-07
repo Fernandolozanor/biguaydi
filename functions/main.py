@@ -260,8 +260,8 @@ def refresh_vehicle_data(req: https_fn.CallableRequest) -> dict[str, Any]:
     payload = {
         "vin": vin,
         "capturedAt": now,
-        "realtime": _without_location(_to_json(realtime)),
-        "energy": _without_location(_to_json(energy)),
+        "realtime": _to_json(realtime),
+        "energy": _to_json(energy),
         "source": "byd-cloud",
     }
     ref = db.collection("vehicleData").document(uid)

@@ -554,128 +554,280 @@
           </div>
         </section>
 
-        <!-- 3. VIEW: TELEMETRY (DATOS TÉCNICOS DETALLADOS) -->
+        <!-- 3. VIEW: VEHICLE & TELEMETRY (SECCIÓN COCHE REORGANIZABLE Y SIN DATOS FICTICIOS) -->
         <section class="app-view" id="view-telemetry">
           <div class="view-header">
-            <span class="overline">SISTEMAS DEL VEHÍCULO</span>
-            <h2>Telemetría en Vivo</h2>
-            <p>Valores de tracción, BMS de alto voltaje, chasis y neumáticos.</p>
-          </div>
-
-          <div class="grid-cols-2" style="margin-bottom:20px;">
-            <!-- PANEL TRACCIÓN Y MARCHA OCULTO SEGÚN PREFERENCIA DE USUARIO -->
-            <div class="tech-panel traction-panel" id="panel-traction" style="display:none;" aria-hidden="true">
-              <div class="traction-header">
-                <span class="overline">TRACCIÓN & MARCHA</span>
-                <span class="traction-live-badge" id="tel-live-indicator">
-                  <span class="traction-pulse-dot"></span>
-                  <span id="tel-activity-badge">EN REPOSO</span>
-                </span>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+              <div>
+                <span class="overline">SISTEMAS DEL VEHÍCULO</span>
+                <h2>Estado del Vehículo</h2>
+                <p>Telemetría en tiempo real, seguridad, climatización, neumáticos y localización GPS.</p>
               </div>
-
-              <!-- PRND GEAR CLUSTER SELECTOR -->
-              <div class="gear-cluster" id="tel-gear-cluster">
-                <div class="gear-pill active" data-gear="P">P</div>
-                <div class="gear-pill" data-gear="R">R</div>
-                <div class="gear-pill" data-gear="N">N</div>
-                <div class="gear-pill" data-gear="D">D</div>
-              </div>
-
-              <!-- DYNAMIC POWER & FLUX GAUGE BAR -->
-              <div class="power-flux-container">
-                <div class="power-flux-labels">
-                  <span>Regen <small>(-kW)</small></span>
-                  <b id="tel-power-display">0.2 kW</b>
-                  <span>Tracción <small>(+kW)</small></span>
-                </div>
-                <div class="power-flux-track">
-                  <div class="flux-center-mark"></div>
-                  <div class="flux-active-bar" id="tel-flux-bar" style="width:2%; left:50%;"></div>
-                </div>
-              </div>
-
-              <!-- METRICS GRID -->
-              <div class="traction-metrics-list">
-                <div class="traction-metric-row">
-                  <span>Estado actual:</span>
-                  <b id="tel-drive-status" style="color:var(--accent);">Estacionado (P)</b>
-                </div>
-                <div class="traction-metric-row">
-                  <span>Velocidad:</span>
-                  <b id="tel-speed" style="color:var(--accent);">0 km/h · Detenido</b>
-                </div>
-                <div class="traction-metric-row">
-                  <span>Potencia / Flujo:</span>
-                  <b id="tel-power">0.2 kW (Auxiliares)</b>
-                </div>
-                <div class="traction-metric-row">
-                  <span>Modo Conducción:</span>
-                  <b id="tel-drive-mode" style="color:var(--text-muted);">ECO Inteligente</b>
-                </div>
-              </div>
-
-              <!-- INTERACTIVE TEST / SIMULATION CONTROLS -->
-              <div class="traction-card-footer">
-                <button type="button" class="btn-traction-test" id="btn-test-traction" title="Probar respuesta y actividad en tiempo real">
-                  ⚡ Probar Actividad Dinámica
+              <div class="vehicle-view-toolbar" style="display:flex; gap:8px; align-items:center;">
+                <button type="button" class="action-btn" id="btn-reset-vehicle-sections" style="padding:6px 12px; font-size:11px;" title="Restablecer orden predeterminado de las secciones">
+                  ↺ Restablecer orden
                 </button>
               </div>
             </div>
-
-            <div class="tech-panel">
-              <span class="overline">BATERÍA & ALTO VOLTAJE</span>
-              <div style="display:flex; justify-content:space-between; margin-top:12px;">
-                <span>Salud Batería (SoH):</span>
-                <b id="tel-soh" style="font-family:var(--mono); color:var(--accent);">99.2%</b>
-              </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Tensión Bus HV:</span>
-                <b id="tel-volt-hv" style="font-family:var(--mono);">348.5 V</b>
-              </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Batería auxiliar 12V:</span>
-                <b id="tel-volt-12v" style="font-family:var(--mono);">13.6 V</b>
-              </div>
-            </div>
-
-            <div class="tech-panel">
-              <span class="overline">HISTORIAL & CLIMA</span>
-              <div style="display:flex; justify-content:space-between; margin-top:12px;">
-                <span>Consumo de por vida:</span>
-                <b id="tel-lifetime-cons" style="font-family:var(--mono);">14.2 kWh/100km</b>
-              </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Temp. Exterior:</span>
-                <b id="tel-temp-ext" style="font-family:var(--mono);">19.0°C</b>
-              </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <span>Temp. Cabina:</span>
-                <b id="tel-temp-cabin" style="font-family:var(--mono);">21.5°C</b>
-              </div>
-            </div>
           </div>
 
-          <!-- TIRES HUD -->
-          <div class="tech-panel">
-            <span class="overline">ESTADO Y PRESIÓN DE NEUMÁTICOS</span>
-            <div class="tires-hud-grid">
-              <div class="tire-widget">
-                <small>DELANTERO IZQ.</small>
-                <b id="tire-fl">2.5 bar</b>
+          <!-- CONTENEDOR MODULAR DE SECCIONES REORDENABLES -->
+          <div class="vehicle-sections-container" id="vehicle-sections-list">
+
+            <!-- SECCIÓN 1: RESUMEN DINÁMICO & TRACCIÓN -->
+            <div class="tech-panel vehicle-section-card" id="sec-overview" data-section="sec-overview" draggable="true">
+              <div class="section-card-header">
+                <div class="section-header-left">
+                  <div class="section-reorder-handle" title="Arrastra o usa las flechas para reordenar esta sección">⌖</div>
+                  <div>
+                    <span class="overline">PROPULSIÓN Y MARCHA</span>
+                    <h3 style="margin:2px 0 0;">Dinámica del Vehículo</h3>
+                  </div>
+                </div>
+                <div class="section-card-actions">
+                  <button type="button" class="section-move-btn btn-sec-up" title="Subir sección">▲</button>
+                  <button type="button" class="section-move-btn btn-sec-down" title="Bajar sección">▼</button>
+                </div>
               </div>
-              <div class="tire-widget">
-                <small>DELANTERO DER.</small>
-                <b id="tire-fr">2.5 bar</b>
+
+              <div class="grid-cols-2" style="margin-top:14px; gap:14px;">
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">ESTADO DE MARCHA</span>
+                  <b class="metric-tile-val" id="tel-drive-status" style="color:var(--accent);">Estacionado (P)</b>
+                  <small class="metric-tile-sub">Modo: <span id="tel-drive-mode">ECO Inteligente</span></small>
+                </div>
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">VELOCIDAD & POTENCIA</span>
+                  <b class="metric-tile-val" id="tel-speed">0 km/h</b>
+                  <small class="metric-tile-sub">Potencia instantánea: <span id="tel-power-display" style="font-family:var(--mono); color:var(--text);">0.0 kW</span></small>
+                </div>
               </div>
-              <div class="tire-widget">
-                <small>TRASERO IZQ.</small>
-                <b id="tire-rl">2.6 bar</b>
-              </div>
-              <div class="tire-widget">
-                <small>TRASERO DER.</small>
-                <b id="tire-rr">2.6 bar</b>
+
+              <!-- CONSUMO MEDIO ÚLTIMOS 50 KM (SUSTITUYE AL CONSUMO HISTÓRICO FICTICIO) -->
+              <div class="vehicle-banner-metric" style="margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <span class="metric-tile-label">CONSUMO MEDIO (ÚLTIMOS 50 KM)</span>
+                    <b style="font-family:var(--mono); font-size:18px; color:var(--accent); display:block; margin-top:2px;" id="tel-avg-50km-val">13.8 kWh/100km</b>
+                  </div>
+                  <span style="font-size:26px;">⚡</span>
+                </div>
               </div>
             </div>
+
+            <!-- SECCIÓN 2: BATERÍA & PROCESO DE CARGA -->
+            <div class="tech-panel vehicle-section-card" id="sec-battery-charging" data-section="sec-battery-charging" draggable="true">
+              <div class="section-card-header">
+                <div class="section-header-left">
+                  <div class="section-reorder-handle" title="Arrastra o usa las flechas para reordenar esta sección">⌖</div>
+                  <div>
+                    <span class="overline">BATERÍA BLADE & ENERGÍA</span>
+                    <h3 style="margin:2px 0 0;">Carga y Alto Voltaje</h3>
+                  </div>
+                </div>
+                <div class="section-card-actions">
+                  <button type="button" class="section-move-btn btn-sec-up" title="Subir sección">▲</button>
+                  <button type="button" class="section-move-btn btn-sec-down" title="Bajar sección">▼</button>
+                </div>
+              </div>
+
+              <div class="grid-cols-3" style="margin-top:14px; gap:12px;">
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">ESTADO DE CARGA</span>
+                  <b class="metric-tile-val" id="tel-soc-val" style="color:var(--accent);">78%</b>
+                  <small class="metric-tile-sub">Autonomía: <span id="tel-range-val">312</span> km</small>
+                </div>
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">CONEXIÓN CABLE</span>
+                  <b class="metric-tile-val" id="tel-cable-status">Desconectado</b>
+                  <small class="metric-tile-sub" id="tel-charge-status-sub">Listo para cargar</small>
+                </div>
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">TIEMPO HASTA 100%</span>
+                  <b class="metric-tile-val" id="tel-time-remaining">--</b>
+                  <small class="metric-tile-sub">Estimación BMS</small>
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+                <div class="vehicle-sub-item">
+                  <span>Tensión Bus HV:</span>
+                  <b id="tel-volt-hv" style="font-family:var(--mono);">348.5 V</b>
+                </div>
+                <div class="vehicle-sub-item">
+                  <span>Batería Auxiliar 12V:</span>
+                  <b id="tel-volt-12v" style="font-family:var(--mono);">13.6 V</b>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECCIÓN 3: SEGURIDAD, PUERTAS Y ALARMA -->
+            <div class="tech-panel vehicle-section-card" id="sec-security-doors" data-section="sec-security-doors" draggable="true">
+              <div class="section-card-header">
+                <div class="section-header-left">
+                  <div class="section-reorder-handle" title="Arrastra o usa las flechas para reordenar esta sección">⌖</div>
+                  <div>
+                    <span class="overline">SEGURIDAD Y ACCESOS</span>
+                    <h3 style="margin:2px 0 0;">Cierres, Puertas y Alarma</h3>
+                  </div>
+                </div>
+                <div class="section-card-actions">
+                  <button type="button" class="section-move-btn btn-sec-up" title="Subir sección">▲</button>
+                  <button type="button" class="section-move-btn btn-sec-down" title="Bajar sección">▼</button>
+                </div>
+              </div>
+
+              <div class="grid-cols-3" style="margin-top:14px; gap:12px;">
+                <div class="vehicle-metric-tile" id="tile-door-lock">
+                  <span class="metric-tile-label">CIERRE CENTRALIZADO</span>
+                  <b class="metric-tile-val" id="tel-lock-status">🔒 Bloqueado</b>
+                  <small class="metric-tile-sub" id="tel-lock-sub">Todas las puertas cerradas</small>
+                </div>
+                <div class="vehicle-metric-tile" id="tile-alarm">
+                  <span class="metric-tile-label">SISTEMA DE ALARMA</span>
+                  <b class="metric-tile-val" id="tel-alarm-status">🛡️ Armada</b>
+                  <small class="metric-tile-sub">Antirrobo activo</small>
+                </div>
+                <div class="vehicle-metric-tile" id="tile-trunk">
+                  <span class="metric-tile-label">MALETERO & VENTANAS</span>
+                  <b class="metric-tile-val" id="tel-trunk-windows">Cerrado</b>
+                  <small class="metric-tile-sub" id="tel-windows-sub">Ventanillas subidas</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECCIÓN 4: CLIMATIZACIÓN Y CONFORT -->
+            <div class="tech-panel vehicle-section-card" id="sec-climate" data-section="sec-climate" draggable="true">
+              <div class="section-card-header">
+                <div class="section-header-left">
+                  <div class="section-reorder-handle" title="Arrastra o usa las flechas para reordenar esta sección">⌖</div>
+                  <div>
+                    <span class="overline">CONFORT TÉRMICO</span>
+                    <h3 style="margin:2px 0 0;">Climatizador & Temperaturas</h3>
+                  </div>
+                </div>
+                <div class="section-card-actions">
+                  <button type="button" class="section-move-btn btn-sec-up" title="Subir sección">▲</button>
+                  <button type="button" class="section-move-btn btn-sec-down" title="Bajar sección">▼</button>
+                </div>
+              </div>
+
+              <div class="grid-cols-3" style="margin-top:14px; gap:12px;">
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">ESTADO CLIMA (A/C)</span>
+                  <b class="metric-tile-val" id="tel-hvac-status">❄️ Apagado</b>
+                  <small class="metric-tile-sub">Consigna: <span id="tel-hvac-target">22.0°C</span></small>
+                </div>
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">TEMPERATURA CABINA</span>
+                  <b class="metric-tile-val" id="tel-temp-cabin">21.5°C</b>
+                  <small class="metric-tile-sub">Interior vehículo</small>
+                </div>
+                <div class="vehicle-metric-tile">
+                  <span class="metric-tile-label">TEMPERATURA EXTERIOR</span>
+                  <b class="metric-tile-val" id="tel-temp-ext">19.0°C</b>
+                  <small class="metric-tile-sub">Sonda frontal</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECCIÓN 5: NEUMÁTICOS Y TPMS -->
+            <div class="tech-panel vehicle-section-card" id="sec-tires" data-section="sec-tires" draggable="true">
+              <div class="section-card-header">
+                <div class="section-header-left">
+                  <div class="section-reorder-handle" title="Arrastra o usa las flechas para reordenar esta sección">⌖</div>
+                  <div>
+                    <span class="overline">CHASIS Y SEGURIDAD VIAL</span>
+                    <h3 style="margin:2px 0 0;">Presión de Neumáticos (TPMS)</h3>
+                  </div>
+                </div>
+                <div class="section-card-actions">
+                  <button type="button" class="section-move-btn btn-sec-up" title="Subir sección">▲</button>
+                  <button type="button" class="section-move-btn btn-sec-down" title="Bajar sección">▼</button>
+                </div>
+              </div>
+
+              <!-- ALERTA DE PRESIÓN BAJA SI SE DETECTA -->
+              <div class="tires-alert-banner" id="tires-warning-banner" style="display:none; margin-top:12px;">
+                <span class="alert-icon">⚠️</span>
+                <span id="tires-warning-text">Alerta: Presión baja detectada en neumático.</span>
+              </div>
+
+              <div class="tires-hud-grid" style="margin-top:14px;">
+                <div class="tire-widget" id="tire-widget-fl">
+                  <div>
+                    <small>DELANTERO IZQ.</small>
+                    <span class="tire-status-label" id="tire-status-fl">Normal</span>
+                  </div>
+                  <b id="tire-fl">-- bar</b>
+                </div>
+                <div class="tire-widget" id="tire-widget-fr">
+                  <div>
+                    <small>DELANTERO DER.</small>
+                    <span class="tire-status-label" id="tire-status-fr">Normal</span>
+                  </div>
+                  <b id="tire-fr">-- bar</b>
+                </div>
+                <div class="tire-widget" id="tire-widget-rl">
+                  <div>
+                    <small>TRASERO IZQ.</small>
+                    <span class="tire-status-label" id="tire-status-rl">Normal</span>
+                  </div>
+                  <b id="tire-rl">-- bar</b>
+                </div>
+                <div class="tire-widget" id="tire-widget-rr">
+                  <div>
+                    <small>TRASERO DER.</small>
+                    <span class="tire-status-label" id="tire-status-rr">Normal</span>
+                  </div>
+                  <b id="tire-rr">-- bar</b>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECCIÓN 6: LOCALIZACIÓN GPS & MAPA HIGH-TECH -->
+            <div class="tech-panel vehicle-section-card" id="sec-gps-location" data-section="sec-gps-location" draggable="true">
+              <div class="section-card-header">
+                <div class="section-header-left">
+                  <div class="section-reorder-handle" title="Arrastra o usa las flechas para reordenar esta sección">⌖</div>
+                  <div>
+                    <span class="overline">POSICIONAMIENTO GLOBAL</span>
+                    <h3 style="margin:2px 0 0;">Ubicación GPS en Vivo</h3>
+                  </div>
+                </div>
+                <div class="section-card-actions">
+                  <button type="button" class="section-move-btn btn-sec-up" title="Subir sección">▲</button>
+                  <button type="button" class="section-move-btn btn-sec-down" title="Bajar sección">▼</button>
+                </div>
+              </div>
+
+              <div class="gps-tech-card" style="margin-top:14px;">
+                <div class="gps-data-row">
+                  <div class="gps-coords-badge">
+                    <span class="gps-radar-dot"></span>
+                    <span id="tel-gps-coords" style="font-family:var(--mono);">40.4168° N, -3.7038° W</span>
+                  </div>
+                  <div class="gps-address-box">
+                    <span class="gps-pin-icon">📍</span>
+                    <b id="tel-gps-address">Obteniendo dirección por geocodificación...</b>
+                  </div>
+                </div>
+
+                <!-- MAPA HIGH TECH ESTILO RADAR / MATRIZ DE NEÓN -->
+                <div class="hightech-map-viewport" id="hightech-map-container">
+                  <canvas id="gps-hightech-canvas" width="600" height="200" class="gps-map-canvas"></canvas>
+                  <div class="gps-overlay-crosshair">
+                    <div class="crosshair-ring"></div>
+                    <div class="crosshair-center">🚗</div>
+                  </div>
+                  <div class="gps-map-meta">
+                    <span id="gps-map-satellites">🛰️ Enlace GNSS Activo</span>
+                    <a href="#" id="gps-external-map-link" target="_blank" rel="noopener" class="gps-map-btn">Abrir en Navegador ↗</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </section>
 

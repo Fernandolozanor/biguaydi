@@ -2792,13 +2792,184 @@ body[data-size="5"] {
   }
 }
 
-/* TIRES CAR SCHEMATIC */
+/* TIRES & REORDERABLE VEHICLE SECTIONS */
+.vehicle-sections-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.vehicle-section-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  background: var(--panel-card);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+}
+
+.vehicle-section-card.dragging {
+  opacity: 0.45;
+  border-color: var(--accent);
+}
+
+.vehicle-section-card.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.35);
+  transform: translateY(-2px);
+}
+
+.section-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 10px;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-reorder-handle {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+}
+
+.section-reorder-handle:hover {
+  background: rgba(var(--accent-rgb), 0.25);
+  transform: scale(1.08);
+}
+
+.section-reorder-handle:active {
+  cursor: grabbing;
+}
+
+.section-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.section-move-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+.section-move-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+/* TILES & TIRES */
+.vehicle-metric-tile {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-tile-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+}
+
+.metric-tile-val {
+  font-size: 17px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.metric-tile-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.vehicle-banner-metric {
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.12) 0%, rgba(0, 0, 0, 0.3) 100%);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
+
+.vehicle-sub-item {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.tires-alert-banner {
+  background: rgba(255, 140, 115, 0.15);
+  border: 1px solid #ff8c73;
+  color: #ff8c73;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tire-status-label {
+  font-size: 10px;
+  font-family: var(--mono);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.tire-widget.warning {
+  border-color: #ff8c73 !important;
+  background: rgba(255, 140, 115, 0.12) !important;
+}
+
+.tire-widget.warning b {
+  color: #ff8c73 !important;
+}
+
 .tires-hud-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  position: relative;
-  margin-top: 16px;
+  gap: 14px;
 }
 
 .tire-widget {
@@ -2809,6 +2980,7 @@ body[data-size="5"] {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: all 0.2s ease;
 }
 
 .tire-widget b {
@@ -2819,8 +2991,134 @@ body[data-size="5"] {
 
 .tire-widget small {
   color: #a2b5ab;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
+  display: block;
+}
+
+/* HIGH TECH GPS RADAR & MAP VIEWPORT */
+.gps-tech-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gps-data-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gps-coords-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.gps-radar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: radarBlink 1.5s infinite ease-in-out;
+}
+
+@keyframes radarBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.8); }
+}
+
+.gps-address-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.hightech-map-viewport {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: #040907;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.gps-map-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.gps-overlay-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+
+.crosshair-ring {
+  width: 48px;
+  height: 48px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 50%;
+  animation: crosshairRotate 12s linear infinite;
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.35);
+}
+
+@keyframes crosshairRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.crosshair-center {
+  position: absolute;
+  font-size: 18px;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+
+.gps-map-meta {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  pointer-events: auto;
+}
+
+.gps-map-btn {
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  color: var(--accent);
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.gps-map-btn:hover {
+  background: var(--accent);
+  color: #040907;
 }
 
 /* SETTINGS & THEMES PICKER */

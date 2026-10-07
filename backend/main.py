@@ -47,15 +47,14 @@ def _client_config(username: str, password: str, country_code: str = "ES") -> By
     )
 
 def _clean_data(val: Any) -> Any:
-    """Recursively clean pydantic models or dicts, dropping GPS coordinates for privacy."""
-    blocked = {"latitude", "longitude", "gps", "gpsinfo", "gps_info", "lat", "lng", "lon"}
+    """Recursively clean pydantic models or dicts, preserving all telemetry including GPS."""
     if hasattr(val, "model_dump"):
         val = val.model_dump(mode="json", exclude_none=True)
     if isinstance(val, dict):
         return {
             k: _clean_data(v)
             for k, v in val.items()
-            if k.lower() not in blocked and "gps" not in k.lower() and "location" not in k.lower() and v is not None
+            if v is not None
         }
     if isinstance(val, (list, tuple)):
         return [_clean_data(item) for item in val]

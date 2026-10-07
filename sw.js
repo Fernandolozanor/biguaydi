@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v39-strict-two-line-compact-view';
+const CACHE = 'biguaydi-v40-real-telemetry-reorderable-sections';
 const ASSETS = [
   './',
   './index.html',
