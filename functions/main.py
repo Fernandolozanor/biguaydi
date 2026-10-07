@@ -246,22 +246,37 @@ def refresh_vehicle_data(req: https_fn.CallableRequest) -> dict[str, Any]:
         _https_error(https_fn.FunctionsErrorCode.FAILED_PRECONDITION, "Elige primero tu vehículo.")
     credentials = _decrypt_credentials(connection["credentialsCiphertext"])
 
-    async def fetch() -> tuple[Any, Any]:
+    async def fetch() -> tuple[Any, Any, Any]:
         async with BydClient(_client_config(credentials)) as client:
             realtime = await client.get_vehicle_realtime(vin)
             energy = await client.get_energy_consumption(vin)
-            return realtime, energy
+            gps = None
+            try:
+                gps = await asyncio.wait_for(client.get_gps_info(vin), timeout=6.0)
+            except Exception:
+                pass
+            return realtime, energy, gps
 
     try:
-        realtime, energy = asyncio.run(fetch())
+        realtime, energy, gps = asyncio.run(fetch())
     except Exception:
         _https_error(https_fn.FunctionsErrorCode.UNAVAILABLE, "BYD no pudo entregar datos ahora. Vuelve a intentarlo en un momento.")
     now = datetime.now(UTC)
+    rt_dict = _to_json(realtime)
+    gps_dict = _to_json(gps) if gps else None
+    if gps_dict and isinstance(rt_dict, dict):
+        if "latitude" not in rt_dict and gps_dict.get("latitude") is not None:
+            rt_dict["latitude"] = gps_dict.get("latitude")
+        if "longitude" not in rt_dict and gps_dict.get("longitude") is not None:
+            rt_dict["longitude"] = gps_dict.get("longitude")
+        rt_dict["gps"] = gps_dict
+
     payload = {
         "vin": vin,
         "capturedAt": now,
-        "realtime": _to_json(realtime),
+        "realtime": rt_dict,
         "energy": _to_json(energy),
+        "gps": gps_dict,
         "source": "byd-cloud",
     }
     ref = db.collection("vehicleData").document(uid)

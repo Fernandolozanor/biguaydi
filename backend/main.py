@@ -193,26 +193,45 @@ async def get_telemetry(req: FetchRequest):
             if not selected_vin:
                 raise HTTPException(status_code=404, detail="No se pudo identificar el número de bastidor (VIN).")
             
-            # Use direct client methods or vehicle instance methods
+            # 1. Realtime vehicle status
             try:
                 realtime_raw = await client.get_vehicle_realtime(selected_vin)
             except AttributeError:
                 realtime_raw = await vehicles[0].get_realtime_data()
-            
+
+            # 2. Energy consumption
             try:
                 energy_raw = await client.get_energy_consumption(selected_vin)
             except AttributeError:
                 energy_raw = await vehicles[0].get_energy_consumption()
 
+            # 3. GPS Position in live satellite fix
+            gps_raw = None
+            try:
+                gps_raw = await asyncio.wait_for(client.get_gps_info(selected_vin), timeout=6.0)
+            except Exception:
+                pass
+
             realtime = _clean_data(realtime_raw)
             energy = _clean_data(energy_raw)
+            gps_clean = _clean_data(gps_raw) if gps_raw else None
+
+            # Inject GPS coordinates directly into realtime payload if available
+            if gps_clean and isinstance(gps_clean, dict):
+                lat = gps_clean.get("latitude")
+                lon = gps_clean.get("longitude")
+                if lat is not None and lon is not None and isinstance(realtime, dict):
+                    realtime["latitude"] = lat
+                    realtime["longitude"] = lon
+                    realtime["gps"] = gps_clean
 
             return {
                 "success": True,
                 "vin": selected_vin,
                 "capturedAt": datetime.now(timezone.utc).isoformat(),
                 "realtime": realtime,
-                "energy": energy
+                "energy": energy,
+                "gps": gps_clean
             }
     except HTTPException:
         raise

@@ -100,7 +100,22 @@ const STATE = {
   vehicle: (function() {
     try {
       const saved = localStorage.getItem('biguaydi-vehicle');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Purge legacy hardcoded tire values (2.5, 2.6) if present
+        if (parsed.tires && (!parsed.tiresSynced || parsed.tires.fl === 2.5 || parsed.tires.rl === 2.6)) {
+          parsed.tires = { fl: null, fr: null, rl: null, rr: null };
+          parsed.tiresSynced = false;
+        }
+        if (!parsed.tiresWarnings) {
+          parsed.tiresWarnings = { fl: false, fr: false, rl: false, rr: false };
+        }
+        // Purge legacy default Madrid coords if not a verified GPS fix
+        if (parsed.gps && parsed.gps.lat === 40.4168 && !parsed.gps.isRealFix) {
+          parsed.gps = { lat: null, lon: null, address: 'Buscando fijación satelital...', resolvedAt: null, isRealFix: false };
+        }
+        return parsed;
+      }
     } catch (_) {}
     return {
       soc: 78,
@@ -120,7 +135,9 @@ const STATE = {
       voltage12v: 13.6,
       avgConsumption50km: 13.8, // kWh/100km
       tires: { fl: null, fr: null, rl: null, rr: null }, // real pressures in bar
+      tiresSynced: false,
       tiresWarning: false,
+      tiresWarnings: { fl: false, fr: false, rl: false, rr: false },
       // Security & Locks
       doorsLocked: true,
       doorStatus: { fl: false, fr: false, rl: false, rr: false }, // true = open
@@ -131,7 +148,7 @@ const STATE = {
       hvacActive: false,
       hvacTemp: 22.0,
       // Location & GPS
-      gps: { lat: null, lon: null, address: 'Cargando ubicación...', resolvedAt: null }
+      gps: { lat: null, lon: null, address: 'Esperando señal satelital...', resolvedAt: null, isRealFix: false }
     };
   })(),
   trips: (function() {
@@ -925,15 +942,20 @@ function renderVehicleHUD() {
   // Section 5: Tires & TPMS (Real or default reference with low pressure detection)
   const warnBanner = document.getElementById('tires-warning-banner');
   const warnText = document.getElementById('tires-warning-text');
-  let hasLowPressure = !!v.tiresWarning;
+  const warnedCorners = [];
 
-  const renderTireWidget = (id, hudId, widgetId, statusId, press) => {
+  const renderTireWidget = (id, hudId, widgetId, statusId, cornerKey, press) => {
     const valText = press !== null && press !== undefined ? `${Number(press).toFixed(2)} bar` : '-- bar';
     setEl(id, valText);
     setEl(hudId, valText);
 
-    const isLow = press !== null && press !== undefined && Number(press) < 2.10;
-    if (isLow) hasLowPressure = true;
+    const cornerWarn = Boolean(v.tiresWarnings && v.tiresWarnings[cornerKey]);
+    const isLow = cornerWarn || (press !== null && press !== undefined && Number(press) < 2.15);
+
+    if (isLow) {
+      const cornerNames = { fl: 'Delantero Izq.', fr: 'Delantero Der.', rl: 'Trasero Izq.', rr: 'Trasero Der.' };
+      warnedCorners.push(`${cornerNames[cornerKey]} (${valText})`);
+    }
 
     const widgetEl = document.getElementById(widgetId);
     const statusEl = document.getElementById(statusId);
@@ -950,34 +972,42 @@ function renderVehicleHUD() {
     }
   };
 
-  renderTireWidget('tire-fl', 'hud-tire-fl', 'tire-widget-fl', 'tire-status-fl', v.tires.fl);
-  renderTireWidget('tire-fr', 'hud-tire-fr', 'tire-widget-fr', 'tire-status-fr', v.tires.fr);
-  renderTireWidget('tire-rl', 'hud-tire-rl', 'tire-widget-rl', 'tire-status-rl', v.tires.rl);
-  renderTireWidget('tire-rr', 'hud-tire-rr', 'tire-widget-rr', 'tire-status-rr', v.tires.rr);
+  renderTireWidget('tire-fl', 'hud-tire-fl', 'tire-widget-fl', 'tire-status-fl', 'fl', v.tires.fl);
+  renderTireWidget('tire-fr', 'hud-tire-fr', 'tire-widget-fr', 'tire-status-fr', 'fr', v.tires.fr);
+  renderTireWidget('tire-rl', 'hud-tire-rl', 'tire-widget-rl', 'tire-status-rl', 'rl', v.tires.rl);
+  renderTireWidget('tire-rr', 'hud-tire-rr', 'tire-widget-rr', 'tire-status-rr', 'rr', v.tires.rr);
 
+  const hasTireProblem = warnedCorners.length > 0 || Boolean(v.tiresWarning);
   if (warnBanner) {
-    warnBanner.style.display = hasLowPressure ? 'flex' : 'none';
-    if (warnText && hasLowPressure) {
-      warnText.textContent = '⚠️ Alerta TPMS: Se ha detectado presión baja (<2.1 bar) en uno o más neumáticos.';
+    warnBanner.style.display = hasTireProblem ? 'flex' : 'none';
+    if (warnText) {
+      if (warnedCorners.length > 0) {
+        warnText.textContent = `⚠️ Alerta TPMS: Presión baja detectada en ${warnedCorners.join(' y ')}. Alerta sincronizada con el vehículo.`;
+      } else {
+        warnText.textContent = '⚠️ Alerta TPMS: Advertencia de presión emitida por los sensores del vehículo.';
+      }
     }
   }
 
   // Section 6: GPS & High-Tech Radar Map
-  const lat = v.gps?.lat || 40.4168;
-  const lon = v.gps?.lon || -3.7038;
-  setEl('tel-gps-coords', `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° W`);
-  const extMapLink = document.getElementById('gps-external-map-link');
-  if (extMapLink) {
-    extMapLink.href = `https://www.google.com/maps?q=${lat},${lon}`;
-  }
-
-  if (v.gps?.lat && v.gps?.lon) {
-    resolveGpsAddress(v.gps.lat, v.gps.lon);
+  const hasRealGps = v.gps && v.gps.lat !== null && v.gps.lon !== null && !isNaN(v.gps.lat);
+  if (hasRealGps) {
+    const lat = v.gps.lat;
+    const lon = v.gps.lon;
+    setEl('tel-gps-coords', `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° W`);
+    const extMapLink = document.getElementById('gps-external-map-link');
+    if (extMapLink) {
+      extMapLink.href = `https://www.google.com/maps?q=${lat},${lon}`;
+    }
+    resolveGpsAddress(lat, lon);
+    renderHighTechRadarMap(lat, lon);
   } else {
-    setEl('tel-gps-address', 'Madrid, España (Posición de Referencia)');
+    setEl('tel-gps-coords', '🛰️ Buscando enlace GNSS...');
+    setEl('tel-gps-address', 'Esperando señal satelital GNSS del vehículo (o en reposo)');
+    // Default radar center on Alcalá de Henares (user area) without inventing fake fixed coords
+    renderHighTechRadarMap(40.4819, -3.3644);
   }
 
-  renderHighTechRadarMap(lat, lon);
   applyVehicleSectionsOrder();
 }
 
@@ -2679,115 +2709,210 @@ export async function syncVehicleTelemetry(isAutoBoot = false) {
       STATE.vehicle.avgConsumption50km = Number(eg.nearest_energy_consumption.avg_ev_consumption);
     }
 
-    // TPMS Tire pressures
-    const parsePressure = (raw) => {
-      if (raw === undefined || raw === null || raw === '' || isNaN(Number(raw))) return null;
-      let num = Number(raw);
-      if (num <= 0) return null;
-      if (num > 50) num = num / 100; // kPa to bar
-      return Number(num.toFixed(2));
+    // TPMS Tire pressures & individual wheel statuses
+    const extractTireVal = (...candidates) => {
+      for (const c of candidates) {
+        if (c !== undefined && c !== null && c !== '' && !isNaN(Number(c))) {
+          let num = Number(c);
+          if (num <= 0) continue;
+          if (num > 50) num = num / 100; // kPa to bar
+          return Number(num.toFixed(2));
+        }
+      }
+      return null;
     };
 
-    const tp = rt.tire_pressure || rt.tire_pressures || rt.tires || {};
-    let flPress = parsePressure(tp.left_front ?? tp.front_left ?? tp.fl ?? rt.left_front_tire_pressure ?? rt.front_left_tire_pressure ?? rt.fl_tire_pressure ?? rt.fl_pressure ?? rt.tire_fl);
-    let frPress = parsePressure(tp.right_front ?? tp.front_right ?? tp.fr ?? rt.right_front_tire_pressure ?? rt.front_right_tire_pressure ?? rt.fr_tire_pressure ?? rt.fr_pressure ?? rt.tire_fr);
-    let rlPress = parsePressure(tp.left_rear ?? tp.rear_left ?? tp.rl ?? rt.left_rear_tire_pressure ?? rt.rear_left_tire_pressure ?? rt.rl_tire_pressure ?? rt.rl_pressure ?? rt.tire_rl);
-    let rrPress = parsePressure(tp.right_rear ?? tp.rear_right ?? tp.rr ?? rt.right_rear_tire_pressure ?? rt.rear_right_tire_pressure ?? rt.rr_tire_pressure ?? rt.rr_pressure ?? rt.tire_rr);
+    const extractStatusBit = (...candidates) => {
+      for (const c of candidates) {
+        if (c !== undefined && c !== null && !isNaN(Number(c))) {
+          return Number(c) > 0;
+        }
+      }
+      return false;
+    };
 
-    if (Array.isArray(tp) && tp.length >= 4) {
-      flPress = parsePressure(tp[0]) ?? flPress;
-      frPress = parsePressure(tp[1]) ?? frPress;
-      rlPress = parsePressure(tp[2]) ?? rlPress;
-      rrPress = parsePressure(tp[3]) ?? rrPress;
-    }
+    const rawObj = rt.raw || {};
+    const tp = rt.tire_pressure || rt.tire_pressures || rt.tires || {};
+
+    const flPress = extractTireVal(
+      rt.left_front_tire_pressure,
+      rt.leftFrontTirePressure,
+      rt.leftFrontTirepressure,
+      rawObj.leftFrontTirepressure,
+      rawObj.leftFrontTirePressure,
+      tp.left_front,
+      tp.front_left,
+      tp.fl
+    );
+    const frPress = extractTireVal(
+      rt.right_front_tire_pressure,
+      rt.rightFrontTirePressure,
+      rt.rightFrontTirepressure,
+      rawObj.rightFrontTirepressure,
+      rawObj.rightFrontTirePressure,
+      tp.right_front,
+      tp.front_right,
+      tp.fr
+    );
+    const rlPress = extractTireVal(
+      rt.left_rear_tire_pressure,
+      rt.leftRearTirePressure,
+      rt.leftRearTirepressure,
+      rawObj.leftRearTirepressure,
+      rawObj.leftRearTirePressure,
+      tp.left_rear,
+      tp.rear_left,
+      tp.rl
+    );
+    const rrPress = extractTireVal(
+      rt.right_rear_tire_pressure,
+      rt.rightRearTirePressure,
+      rt.rightRearTirepressure,
+      rawObj.rightRearTirepressure,
+      rawObj.rightRearTirePressure,
+      tp.right_rear,
+      tp.rear_right,
+      tp.rr
+    );
 
     if (flPress !== null) STATE.vehicle.tires.fl = flPress;
     if (frPress !== null) STATE.vehicle.tires.fr = frPress;
     if (rlPress !== null) STATE.vehicle.tires.rl = rlPress;
     if (rrPress !== null) STATE.vehicle.tires.rr = rrPress;
+    STATE.vehicle.tiresSynced = true;
 
-    STATE.vehicle.tiresWarning = Boolean(
-      rt.tire_pressure_warning || rt.tpms_warning || rt.tire_leak_warning ||
-      (STATE.vehicle.tires.fl !== null && STATE.vehicle.tires.fl < 2.10) ||
-      (STATE.vehicle.tires.fr !== null && STATE.vehicle.tires.fr < 2.10) ||
-      (STATE.vehicle.tires.rl !== null && STATE.vehicle.tires.rl < 2.10) ||
-      (STATE.vehicle.tires.rr !== null && STATE.vehicle.tires.rr < 2.10)
+    // Corner alert status directly from vehicle TPMS
+    let flWarn = extractStatusBit(rt.left_front_tire_status, rt.leftFrontTireStatus, rawObj.leftFrontTireStatus);
+    let frWarn = extractStatusBit(rt.right_front_tire_status, rt.rightFrontTireStatus, rawObj.rightFrontTireStatus);
+    let rlWarn = extractStatusBit(rt.left_rear_tire_status, rt.leftRearTireStatus, rawObj.leftRearTireStatus);
+    let rrWarn = extractStatusBit(rt.right_rear_tire_status, rt.rightRearTireStatus, rawObj.rightRearTireStatus);
+
+    const systemTpmsWarn = extractStatusBit(
+      rt.tirepressure_system,
+      rt.tirepressureSystem,
+      rt.tirePressureSystem,
+      rawObj.tirepressureSystem,
+      rt.rapid_tire_leak,
+      rt.rapidTireLeak,
+      rawObj.rapidTireLeak,
+      rt.tpms_warning
     );
 
+    // Relative pressure check: identify any tire noticeably lower than the others or below normal operating pressure
+    const corners = [
+      { key: 'fl', val: STATE.vehicle.tires.fl },
+      { key: 'fr', val: STATE.vehicle.tires.fr },
+      { key: 'rl', val: STATE.vehicle.tires.rl },
+      { key: 'rr', val: STATE.vehicle.tires.rr }
+    ].filter(x => x.val !== null);
+
+    if (corners.length >= 2) {
+      const maxVal = Math.max(...corners.map(x => x.val));
+      const minVal = Math.min(...corners.map(x => x.val));
+      corners.forEach(c => {
+        // Flag if car emitted individual corner flag OR if difference >= 0.20 bar OR if system flagged and it's the lowest
+        if ((maxVal - c.val >= 0.20) || (systemTpmsWarn && c.val === minVal && maxVal - minVal >= 0.10) || c.val < 2.15) {
+          if (c.key === 'fl') flWarn = true;
+          if (c.key === 'fr') frWarn = true;
+          if (c.key === 'rl') rlWarn = true;
+          if (c.key === 'rr') rrWarn = true;
+        }
+      });
+    }
+
+    STATE.vehicle.tiresWarnings = { fl: flWarn, fr: frWarn, rl: rlWarn, rr: rrWarn };
+    STATE.vehicle.tiresWarning = flWarn || frWarn || rlWarn || rrWarn || systemTpmsWarn;
+
     // Charging cable & remaining time
-    if (rt.charge_gun_status !== undefined) {
-      STATE.vehicle.chargeGunConnected = Boolean(rt.charge_gun_status === 1 || rt.charge_gun_status === true || rt.charge_gun_status === 'connected');
+    const cableConn = rt.charge_gun_status ?? rt.chargeGunStatus ?? rawObj.chargeGunStatus ?? rawObj.charge_gun_status;
+    if (cableConn !== undefined) {
+      STATE.vehicle.chargeGunConnected = Boolean(cableConn === 1 || cableConn === true || cableConn === 'connected' || cableConn === 'CONNECTED');
     } else if (rt.charging) {
       STATE.vehicle.chargeGunConnected = true;
     }
 
-    if (rt.charge_remaining_time !== undefined && rt.charge_remaining_time !== null) {
-      STATE.vehicle.chargeRemainingTime = Number(rt.charge_remaining_time);
-    } else if (rt.charging_time_remaining !== undefined && rt.charging_time_remaining !== null) {
-      STATE.vehicle.chargeRemainingTime = Number(rt.charging_time_remaining);
+    const remTime = rt.charge_remaining_time ?? rt.charging_time_remaining ?? rt.remaining_minutes ?? rawObj.remainingMinutes;
+    if (remTime !== undefined && remTime !== null && !isNaN(Number(remTime))) {
+      STATE.vehicle.chargeRemainingTime = Number(remTime);
     } else if (!STATE.vehicle.charging) {
       STATE.vehicle.chargeRemainingTime = null;
     }
 
-    // Security & Locks
-    if (rt.doors_locked !== undefined) {
-      STATE.vehicle.doorsLocked = Boolean(rt.doors_locked === 1 || rt.doors_locked === true || rt.doors_locked === 'locked');
-    } else if (rt.door_lock_status !== undefined) {
-      STATE.vehicle.doorsLocked = Boolean(rt.door_lock_status === 1 || rt.door_lock_status === true);
+    // Security & Locks (LockState: 2=LOCKED, 1=UNLOCKED)
+    const lockCandidates = [
+      rt.left_front_door_lock, rt.leftFrontDoorLock, rawObj.leftFrontDoorLock,
+      rt.right_front_door_lock, rt.rightFrontDoorLock, rawObj.rightFrontDoorLock,
+      rt.left_rear_door_lock, rt.leftRearDoorLock, rawObj.leftRearDoorLock,
+      rt.right_rear_door_lock, rt.rightRearDoorLock, rawObj.rightRearDoorLock
+    ].filter(v => v !== undefined && v !== null);
+
+    if (lockCandidates.length > 0) {
+      const anyLocked = lockCandidates.some(v => v === 2 || v === 'LOCKED' || v === 'locked');
+      const anyUnlocked = lockCandidates.some(v => v === 1 || v === 'UNLOCKED' || v === 'unlocked');
+      STATE.vehicle.doorsLocked = anyLocked && !anyUnlocked;
+    } else if (rt.doors_locked !== undefined || rt.doorsLocked !== undefined || rawObj.doorsLocked !== undefined) {
+      const lk = rt.doors_locked ?? rt.doorsLocked ?? rawObj.doorsLocked;
+      STATE.vehicle.doorsLocked = Boolean(lk === 2 || lk === 1 || lk === true || lk === 'locked');
     }
 
-    if (rt.door_status && typeof rt.door_status === 'object') {
-      STATE.vehicle.doorStatus = {
-        fl: Boolean(rt.door_status.left_front || rt.door_status.fl),
-        fr: Boolean(rt.door_status.right_front || rt.door_status.fr),
-        rl: Boolean(rt.door_status.left_rear || rt.door_status.rl),
-        rr: Boolean(rt.door_status.right_rear || rt.door_status.rr),
-      };
-    }
+    // Door open state (0=closed, 1=open)
+    STATE.vehicle.doorStatus = {
+      fl: Boolean((rt.left_front_door ?? rt.leftFrontDoor ?? rawObj.leftFrontDoor) === 1),
+      fr: Boolean((rt.right_front_door ?? rt.rightFrontDoor ?? rawObj.rightFrontDoor) === 1),
+      rl: Boolean((rt.left_rear_door ?? rt.leftRearDoor ?? rawObj.leftRearDoor) === 1),
+      rr: Boolean((rt.right_rear_door ?? rt.rightRearDoor ?? rawObj.rightRearDoor) === 1)
+    };
 
-    if (rt.trunk_status !== undefined) {
-      STATE.vehicle.trunkOpen = Boolean(rt.trunk_status === 1 || rt.trunk_status === true || rt.trunk_status === 'open');
-    } else if (rt.trunk_open !== undefined) {
-      STATE.vehicle.trunkOpen = Boolean(rt.trunk_open);
-    }
+    // Trunk lid (0=closed, 1=open)
+    const trunkVal = rt.trunk_lid ?? rt.trunkLid ?? rawObj.trunkLid ?? rt.trunk_status ?? rawObj.backCover;
+    STATE.vehicle.trunkOpen = Boolean(trunkVal === 1 || trunkVal === true || trunkVal === 'open');
 
-    if (rt.windows_status !== undefined) {
-      STATE.vehicle.windowsOpen = Boolean(rt.windows_status === 1 || rt.windows_status === true || rt.windows_status === 'open');
-    } else if (rt.windows_open !== undefined) {
-      STATE.vehicle.windowsOpen = Boolean(rt.windows_open);
-    }
+    // Windows (1=closed, 2=open)
+    const winVals = [
+      rt.left_front_window ?? rt.leftFrontWindow ?? rawObj.leftFrontWindow,
+      rt.right_front_window ?? rt.rightFrontWindow ?? rawObj.rightFrontWindow,
+      rt.left_rear_window ?? rt.leftRearWindow ?? rawObj.leftRearWindow,
+      rt.right_rear_window ?? rt.rightRearWindow ?? rawObj.rightRearWindow
+    ].filter(v => v !== undefined && v !== null);
+    STATE.vehicle.windowsOpen = winVals.some(v => v === 2 || v === 'OPEN' || v === 'open');
 
-    if (rt.alarm_status !== undefined) {
-      STATE.vehicle.alarmArmed = Boolean(rt.alarm_status === 1 || rt.alarm_status === true || rt.alarm_status === 'armed');
-    } else if (rt.alarm_armed !== undefined) {
-      STATE.vehicle.alarmArmed = Boolean(rt.alarm_armed);
+    // Anti-theft Alarm: In BYD vehicles, alarm arms automatically when doors are locked
+    const alarmField = rt.alarm_status ?? rt.alarmStatus ?? rawObj.alarmStatus ?? rawObj.antiTheft ?? rawObj.defenseStatus;
+    if (alarmField !== undefined && alarmField !== null) {
+      STATE.vehicle.alarmArmed = Boolean(alarmField === 1 || alarmField === 2 || alarmField === true || alarmField === 'armed');
+    } else {
+      STATE.vehicle.alarmArmed = STATE.vehicle.doorsLocked;
     }
 
     // Climate
-    if (rt.hvac_status !== undefined) {
-      STATE.vehicle.hvacActive = Boolean(rt.hvac_status === 1 || rt.hvac_status === true || rt.hvac_status === 'on');
-    } else if (rt.ac_on !== undefined) {
-      STATE.vehicle.hvacActive = Boolean(rt.ac_on);
+    if (rt.hvac_status !== undefined || rt.ac_on !== undefined) {
+      const acOn = rt.hvac_status ?? rt.ac_on;
+      STATE.vehicle.hvacActive = Boolean(acOn === 1 || acOn === true || acOn === 'on');
     }
 
-    if (rt.ac_temp !== undefined && !isNaN(Number(rt.ac_temp))) {
-      STATE.vehicle.hvacTemp = Number(rt.ac_temp);
-    } else if (rt.target_temp !== undefined && !isNaN(Number(rt.target_temp))) {
-      STATE.vehicle.hvacTemp = Number(rt.target_temp);
-    } else if (rt.hvac_temp !== undefined && !isNaN(Number(rt.hvac_temp))) {
-      STATE.vehicle.hvacTemp = Number(rt.hvac_temp);
+    const acTarget = rt.main_setting_temp_new ?? rt.ac_temp ?? rt.target_temp ?? rt.hvac_temp ?? rawObj.mainSettingTempNew ?? rawObj.acTemp;
+    if (acTarget !== undefined && !isNaN(Number(acTarget))) {
+      STATE.vehicle.hvacTemp = Number(acTarget);
     }
 
-    // GPS Location
-    const gpsLat = rt.latitude ?? rt.lat ?? rt.location?.latitude ?? rt.location?.lat ?? rt.gps?.latitude ?? rt.gps?.lat;
-    const gpsLon = rt.longitude ?? rt.lon ?? rt.lng ?? rt.location?.longitude ?? rt.location?.lng ?? rt.gps?.longitude ?? rt.gps?.lon;
-    if (gpsLat !== undefined && gpsLon !== undefined && !isNaN(Number(gpsLat)) && !isNaN(Number(gpsLon))) {
+    // GPS Location (from separate gps endpoint, realtime object, or raw payload)
+    const gpsObj = data.gps || rt.gps || rawObj.gps || {};
+    const gpsLat = gpsObj.latitude ?? gpsObj.lat ?? rt.latitude ?? rt.lat ?? rawObj.latitude ?? rawObj.lat;
+    const gpsLon = gpsObj.longitude ?? gpsObj.lon ?? gpsObj.lng ?? rt.longitude ?? rt.lon ?? rawObj.longitude ?? rawObj.lng;
+
+    if (gpsLat !== undefined && gpsLon !== undefined && gpsLat !== null && gpsLon !== null && !isNaN(Number(gpsLat)) && !isNaN(Number(gpsLon)) && Number(gpsLat) !== 0) {
+      const newLat = Number(gpsLat);
+      const newLon = Number(gpsLon);
       const prevLat = STATE.vehicle.gps?.lat;
       const prevLon = STATE.vehicle.gps?.lon;
+
       STATE.vehicle.gps = STATE.vehicle.gps || {};
-      STATE.vehicle.gps.lat = Number(gpsLat);
-      STATE.vehicle.gps.lon = Number(gpsLon);
-      if (prevLat !== null && prevLon !== null && (Math.abs(prevLat - Number(gpsLat)) > 0.0005 || Math.abs(prevLon - Number(gpsLon)) > 0.0005)) {
+      STATE.vehicle.gps.lat = newLat;
+      STATE.vehicle.gps.lon = newLon;
+      STATE.vehicle.gps.isRealFix = true;
+
+      // Reset address resolution if coordinates changed by more than ~40 meters
+      if (prevLat === null || prevLon === null || Math.abs(prevLat - newLat) > 0.0004 || Math.abs(prevLon - newLon) > 0.0004) {
         STATE.vehicle.gps.address = null;
         STATE.vehicle.gps.resolvedAt = null;
       }

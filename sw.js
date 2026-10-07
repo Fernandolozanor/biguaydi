@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v40-real-telemetry-reorderable-sections';
+const CACHE = 'biguaydi-v41-live-tpms-gps-fix-doors-security';
 const ASSETS = [
   './',
   './index.html',
