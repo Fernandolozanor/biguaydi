@@ -928,17 +928,19 @@ body[data-size="5"] {
 
 .chassis-wrapper {
   position: relative;
-  width: 280px;
+  width: 100%;
+  max-width: 340px;
   height: 250px;
   display: flex;
   justify-content: center;
   align-items: center;
+  margin: 0 auto;
 }
 
 .chassis-image-container {
   position: relative;
-  width: 140px;
-  height: 240px;
+  width: 110px;
+  height: 220px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1020,21 +1022,21 @@ body[data-size="5"] {
 /* TIRE INDICATOR WIDGETS */
 .tire-indicator {
   position: absolute;
-  background: rgba(8, 16, 13, 0.9);
+  background: rgba(8, 16, 13, 0.94);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-sm);
-  padding: 5px 9px;
+  padding: 5px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   min-width: 68px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
   z-index: 3;
 }
 
 .tire-indicator small {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9.5px;
   color: #a2b5ab;
   letter-spacing: 0.6px;
   font-weight: 600;
@@ -1042,21 +1044,22 @@ body[data-size="5"] {
 
 .tire-indicator b {
   font-family: var(--mono);
-  font-size: 15.5px;
+  font-size: 14.5px;
   color: var(--accent);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .tire-indicator b .unit {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-muted);
   font-weight: 500;
 }
 
-.tire-top-left { top: 22px; left: 0; }
-.tire-top-right { top: 22px; right: 0; }
-.tire-bottom-left { bottom: 22px; left: 0; }
-.tire-bottom-right { bottom: 22px; right: 0; }
+.tire-top-left { top: 18px; left: 0; }
+.tire-top-right { top: 18px; right: 0; }
+.tire-bottom-left { bottom: 18px; left: 0; }
+.tire-bottom-right { bottom: 18px; right: 0; }
 
 .car-hero-render {
   display: flex;
@@ -2957,43 +2960,77 @@ body[data-size="5"] {
   margin-top: 2px;
 }
 
+.tires-hud-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.tire-widget {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 98px;
+  transition: all 0.2s ease;
+}
+
+.tire-widget-header {
+  width: 100%;
+}
+
+.tire-widget-header small {
+  color: #a2b5ab;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  display: block;
+}
+
+.tire-widget b {
+  font-family: var(--mono);
+  font-size: 21px;
+  color: var(--accent);
+  line-height: 1.15;
+  margin: 2px 0;
+  display: block;
+  letter-spacing: 0.3px;
+}
+
+.tire-widget-footer {
+  width: 100%;
+}
+
+.tire-status-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .tire-widget.warning {
   border-color: #ff8c73 !important;
   background: rgba(255, 140, 115, 0.12) !important;
+  box-shadow: 0 0 14px rgba(255, 140, 115, 0.2);
 }
 
 .tire-widget.warning b {
   color: #ff8c73 !important;
 }
 
-.tires-hud-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.tire-widget {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s ease;
-}
-
-.tire-widget b {
-  font-family: var(--mono);
-  font-size: 20px;
-  color: var(--accent);
-}
-
-.tire-widget small {
-  color: #a2b5ab;
-  font-size: 12px;
-  font-weight: 500;
-  display: block;
+.tire-widget.warning .tire-status-label {
+  background: rgba(255, 140, 115, 0.22);
+  color: #ff8c73 !important;
 }
 
 /* HIGH TECH GPS RADAR & MAP VIEWPORT */
@@ -3269,12 +3306,16 @@ body[data-size="5"] {
   }
   .chassis-wrapper {
     width: 100%;
-    max-width: 280px;
+    max-width: 340px;
   }
-  .tire-top-left { left: 4px; }
-  .tire-top-right { right: 4px; }
-  .tire-bottom-left { left: 4px; }
-  .tire-bottom-right { right: 4px; }
+  .chassis-image-container {
+    width: 108px;
+    height: 215px;
+  }
+  .tire-top-left { left: 0; }
+  .tire-top-right { right: 0; }
+  .tire-bottom-left { left: 0; }
+  .tire-bottom-right { right: 0; }
 
   /* MOBILE CHART OPTIMIZATION: FLUID FIT & RESPONSIVE SCALING */
   .comparison-chart-box {
