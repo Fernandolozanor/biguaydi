@@ -48,7 +48,7 @@ export function parseDateStringToTimestamp(str) {
 }
 
 // --- DATA STRUCTURE & STATE ---
-const STATE = {
+export const STATE = {
   theme: localStorage.getItem('biguaydi-theme') || 'original',
   fontSize: Number(localStorage.getItem('biguaydi-size')) || 3,
   view: 'dashboard',
@@ -203,7 +203,10 @@ const STATE = {
   autoRecorder: {
     lastOdometer: Number(localStorage.getItem('biguaydi-recorder-odo')) || 14280,
     status: 'Activo'
-  }
+  },
+  tripGroupMode: false,
+  selectedTripIds: new Set(),
+  expandedSubTrips: new Set()
 };
 
 export const TRIP_CATEGORIES = {
@@ -1130,6 +1133,316 @@ function isTripInPeriod(trip, period) {
   return true;
 }
 
+// --- DURATION HELPERS & TRIP ACCUMULATION LOGIC ---
+export function parseDurationMinutes(str) {
+  if (!str) return 0;
+  if (typeof str === 'number') return str;
+  const s = String(str).toLowerCase().trim();
+  let totalMin = 0;
+  const hMatch = s.match(/(\d+)\s*h/);
+  if (hMatch) totalMin += parseInt(hMatch[1], 10) * 60;
+  const mMatch = s.match(/(\d+)\s*m/);
+  if (mMatch) {
+    totalMin += parseInt(mMatch[1], 10);
+  } else if (!hMatch) {
+    const num = parseInt(s, 10);
+    if (!isNaN(num)) totalMin += num;
+  }
+  return totalMin;
+}
+
+export function formatDurationMinutes(totalMin) {
+  const mins = Math.max(0, Math.round(totalMin));
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (m === 0) return `${h} h`;
+  return `${h}h ${m} min`;
+}
+
+// Valida que entre cada trayecto consecutivo la separación sea menor a 2 horas (120 min)
+export function validateTripsSeparation(trips) {
+  if (!trips || trips.length < 2) {
+    return { valid: false, error: 'Selecciona al menos 2 trayectos para agrupar.' };
+  }
+  // Ordenar cronológicamente ascendente (el más antiguo primero)
+  const sorted = [...trips].sort((a, b) => getTripTimestamp(a) - getTripTimestamp(b));
+  const twoHoursMs = 2 * 60 * 60 * 1000;
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const cur = sorted[i];
+    const nxt = sorted[i + 1];
+    const curStart = getTripTimestamp(cur);
+    const nxtStart = getTripTimestamp(nxt);
+    const curDurMs = parseDurationMinutes(cur.duration) * 60 * 1000;
+    const curEnd = curStart + curDurMs;
+
+    // Tiempo de separación entre el fin de cur y el inicio de nxt
+    const gapMs = Math.max(0, nxtStart - Math.max(curStart, curEnd));
+    if (gapMs > twoHoursMs) {
+      const gapMinutes = Math.round(gapMs / (60 * 1000));
+      const gapHours = (gapMinutes / 60).toFixed(1);
+      return {
+        valid: false,
+        error: `Tramos "${cur.title}" y "${nxt.title}" separados por ${gapHours}h (${gapMinutes} min) > límite de 2 horas.`,
+        gapMinutes,
+        violatingPair: [cur, nxt]
+      };
+    }
+  }
+  return { valid: true };
+}
+
+// Renderiza el panel acordeón con el desglose de los tramos que componen un trayecto agrupado
+function renderSubTripsBreakdownHtml(trip) {
+  if (!trip.isGroup || !Array.isArray(trip.subTrips) || trip.subTrips.length === 0) return '';
+  return `
+    <div class="subtrips-breakdown-panel" data-parent-id="${trip.id}">
+      <div class="subtrips-header">
+        <span class="subtrips-title">🔗 ${trip.subTrips.length} tramos acumulados en este trayecto</span>
+        <button type="button" class="btn-ungroup-action" data-id="${trip.id}" title="Desagrupar en trayectos individuales">
+          ✂️ Desagrupar tramos
+        </button>
+      </div>
+      <div class="subtrips-items">
+        ${trip.subTrips.map((st, sIdx) => {
+          const stCat = TRIP_CATEGORIES[st.category] || TRIP_CATEGORIES.trabajo;
+          const stWh = st.avgWh || Math.round(((Number(st.energy) || 0) * 1000) / (Number(st.distance) || 1));
+          return `
+            <div class="subtrip-row">
+              <div class="subtrip-col-main">
+                <span class="subtrip-idx">#${sIdx + 1}</span>
+                <span class="subtrip-cat-icon" title="${stCat.label}">${stCat.icon}</span>
+                <div class="subtrip-info">
+                  <b class="subtrip-title">${st.title}</b>
+                  <span class="subtrip-date">📅 ${st.date}</span>
+                </div>
+              </div>
+              <div class="subtrip-col-metrics">
+                <span class="subtrip-metric"><b>${(Number(st.distance) || 0).toFixed(1)}</b> km</span>
+                <span class="subtrip-metric"><b>${(Number(st.energy) || 0).toFixed(2)}</b> kWh</span>
+                <span class="subtrip-metric"><b>${stWh}</b> Wh/km</span>
+                <span class="subtrip-metric">⏱️ ${st.duration || '--'}</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Activa o desactiva el modo de selección para agrupar trayectos
+export function toggleTripGroupMode(forceState) {
+  STATE.tripGroupMode = (typeof forceState === 'boolean') ? forceState : !STATE.tripGroupMode;
+  if (!STATE.tripGroupMode) {
+    STATE.selectedTripIds.clear();
+  }
+
+  const toolBtn = document.getElementById('btn-toggle-trip-group-mode');
+  const headBtn = document.getElementById('btn-group-trips-header');
+  if (toolBtn) {
+    toolBtn.classList.toggle('active', STATE.tripGroupMode);
+    const txt = toolBtn.querySelector('.group-btn-text');
+    if (txt) txt.textContent = STATE.tripGroupMode ? 'Cancelar' : 'Agrupar';
+  }
+  if (headBtn) {
+    headBtn.classList.toggle('btn-group-active', STATE.tripGroupMode);
+    headBtn.textContent = STATE.tripGroupMode ? '✕ Cancelar' : '🔗 Agrupar';
+  }
+
+  updateTripGroupFloatingBar();
+  renderTrips();
+}
+
+// Alterna la selección de un trayecto individual
+export function toggleTripSelection(id) {
+  if (STATE.selectedTripIds.has(id)) {
+    STATE.selectedTripIds.delete(id);
+  } else {
+    STATE.selectedTripIds.add(id);
+  }
+  updateTripGroupFloatingBar();
+
+  const card = document.getElementById(`trip-card-${id}`);
+  if (card) {
+    const isSelected = STATE.selectedTripIds.has(id);
+    card.classList.toggle('is-selected-group', isSelected);
+    const cb = card.querySelector('.trip-select-checkbox');
+    if (cb) cb.checked = isSelected;
+  }
+}
+
+// Actualiza el contenido y validación de la barra flotante de agrupación
+export function updateTripGroupFloatingBar() {
+  const bar = document.getElementById('trip-group-floating-bar');
+  if (!bar) return;
+
+  if (!STATE.tripGroupMode) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = 'block';
+  const countEl = document.getElementById('group-bar-count');
+  const statusEl = document.getElementById('group-bar-status');
+  const execBtn = document.getElementById('btn-execute-group-trips');
+
+  const selectedCount = STATE.selectedTripIds.size;
+  if (countEl) countEl.textContent = `${selectedCount} seleccionado${selectedCount === 1 ? '' : 's'}`;
+
+  if (selectedCount === 0) {
+    if (statusEl) {
+      statusEl.className = 'group-bar-status';
+      statusEl.textContent = 'Selecciona al menos 2 trayectos con separación < 2h';
+    }
+    if (execBtn) {
+      execBtn.disabled = true;
+      execBtn.style.opacity = '0.4';
+      execBtn.style.cursor = 'not-allowed';
+    }
+  } else if (selectedCount === 1) {
+    if (statusEl) {
+      statusEl.className = 'group-bar-status';
+      statusEl.textContent = 'Selecciona otro trayecto cercano en el tiempo (< 2h)';
+    }
+    if (execBtn) {
+      execBtn.disabled = true;
+      execBtn.style.opacity = '0.4';
+      execBtn.style.cursor = 'not-allowed';
+    }
+  } else {
+    const selectedTrips = STATE.trips.filter(t => STATE.selectedTripIds.has(t.id));
+    const validation = validateTripsSeparation(selectedTrips);
+
+    if (validation.valid) {
+      if (statusEl) {
+        statusEl.className = 'group-bar-status valid';
+        statusEl.textContent = `✓ Intervalo válido (< 2h entre tramos). Listo para unir.`;
+      }
+      if (execBtn) {
+        execBtn.disabled = false;
+        execBtn.style.opacity = '1';
+        execBtn.style.cursor = 'pointer';
+      }
+    } else {
+      if (statusEl) {
+        statusEl.className = 'group-bar-status invalid';
+        statusEl.textContent = `⚠️ ${validation.error}`;
+      }
+      if (execBtn) {
+        execBtn.disabled = true;
+        execBtn.style.opacity = '0.4';
+        execBtn.style.cursor = 'not-allowed';
+      }
+    }
+  }
+}
+
+// Ejecuta la acumulación de los trayectos seleccionados en uno solo
+export function groupSelectedTrips() {
+  const selectedTrips = STATE.trips.filter(t => STATE.selectedTripIds.has(t.id));
+  if (selectedTrips.length < 2) {
+    showToast('Selecciona al menos 2 trayectos para agrupar');
+    return;
+  }
+
+  const validation = validateTripsSeparation(selectedTrips);
+  if (!validation.valid) {
+    showToast(validation.error);
+    return;
+  }
+
+  // Ordenar cronológicamente ascendente
+  const sorted = [...selectedTrips].sort((a, b) => getTripTimestamp(a) - getTripTimestamp(b));
+
+  const totalDistance = Number(sorted.reduce((acc, t) => acc + (Number(t.distance) || 0), 0).toFixed(1));
+  const totalEnergy = Number(sorted.reduce((acc, t) => acc + (Number(t.energy) || 0), 0).toFixed(2));
+  const avgWh = totalDistance > 0 ? Math.round((totalEnergy * 1000) / totalDistance) : 0;
+  const totalDurationMin = sorted.reduce((acc, t) => acc + parseDurationMinutes(t.duration), 0);
+  const formattedDuration = formatDurationMinutes(totalDurationMin);
+
+  // Aplanar los tramos originales (si alguno ya era grupo, se extraen sus subtrips originales)
+  const subTrips = sorted.flatMap(t => (t.isGroup && Array.isArray(t.subTrips)) ? t.subTrips : [{ ...t }]);
+
+  const earliestTrip = sorted[0];
+  const earliestTs = getTripTimestamp(earliestTrip);
+  const formattedDate = formatRealTripDate(new Date(earliestTs));
+
+  const newGroupTrip = {
+    id: Date.now(),
+    timestamp: earliestTs,
+    date: formattedDate,
+    title: `Trayecto acumulado (${subTrips.length} tramos)`,
+    category: earliestTrip.category || 'trabajo',
+    distance: totalDistance,
+    energy: totalEnergy,
+    avgWh: avgWh,
+    duration: formattedDuration,
+    isGroup: true,
+    subTrips: subTrips,
+    isNew: true
+  };
+
+  const firstIdx = STATE.trips.findIndex(t => STATE.selectedTripIds.has(t.id));
+
+  // Eliminar los trayectos individuales seleccionados e insertar el agrupado
+  STATE.trips = STATE.trips.filter(t => !STATE.selectedTripIds.has(t.id));
+  const insertIdx = (firstIdx >= 0 && firstIdx <= STATE.trips.length) ? firstIdx : 0;
+  STATE.trips.splice(insertIdx, 0, newGroupTrip);
+
+  // Expandir automáticamente el desglose del nuevo grupo
+  STATE.expandedSubTrips.add(newGroupTrip.id);
+
+  // Guardar en almacenamiento local
+  localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+
+  // Cerrar modo selección
+  toggleTripGroupMode(false);
+
+  // Actualizar cálculos y vista
+  updateCalculations();
+  renderTrips();
+
+  showToast(`✓ ¡${subTrips.length} trayectos acumulados con éxito en 1 trayecto combinado!`);
+}
+
+// Desagrupa un trayecto combinado restaurando sus tramos originales
+export function ungroupTrip(id) {
+  const trip = STATE.trips.find(t => t.id === id);
+  if (!trip || !trip.isGroup || !Array.isArray(trip.subTrips) || trip.subTrips.length === 0) {
+    showToast('Este trayecto no contiene tramos acumulados.');
+    return;
+  }
+
+  const confirmed = window.confirm(`¿Desagrupar este trayecto y restablecer sus ${trip.subTrips.length} tramos individuales en el historial?`);
+  if (!confirmed) return;
+
+  const tripIndex = STATE.trips.findIndex(t => t.id === id);
+  if (tripIndex === -1) return;
+
+  // Restaurar subtrips en el lugar del grupo
+  STATE.trips.splice(tripIndex, 1, ...trip.subTrips);
+
+  STATE.expandedSubTrips.delete(id);
+  localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
+
+  updateCalculations();
+  renderTrips();
+
+  showToast(`✓ Se han restaurado los ${trip.subTrips.length} trayectos individuales.`);
+}
+
+// Alterna la visibilidad del desglose de subtrips de un grupo
+export function toggleSubTripsBreakdown(id) {
+  if (STATE.expandedSubTrips.has(id)) {
+    STATE.expandedSubTrips.delete(id);
+  } else {
+    STATE.expandedSubTrips.add(id);
+  }
+  renderTrips();
+}
+
 // --- TRIPS RENDER, KPIS & IMPACTFUL CHART ---
 function renderTrips() {
   const container = document.getElementById('trips-list');
@@ -1307,6 +1620,20 @@ function renderTrips() {
     btn.classList.toggle('active', btn.dataset.view === currentViewMode);
   });
 
+  // Sync Grouping Mode State in Buttons & Floating Bar
+  const toolGroupBtn = document.getElementById('btn-toggle-trip-group-mode');
+  const headGroupBtn = document.getElementById('btn-group-trips-header');
+  if (toolGroupBtn) {
+    toolGroupBtn.classList.toggle('active', !!STATE.tripGroupMode);
+    const txt = toolGroupBtn.querySelector('.group-btn-text');
+    if (txt) txt.textContent = STATE.tripGroupMode ? 'Cancelar' : 'Agrupar';
+  }
+  if (headGroupBtn) {
+    headGroupBtn.classList.toggle('btn-group-active', !!STATE.tripGroupMode);
+    headGroupBtn.textContent = STATE.tripGroupMode ? '✕ Cancelar' : '🔗 Agrupar';
+  }
+  updateTripGroupFloatingBar();
+
   // Render List of Trip Cards
   if (displayedTrips.length === 0) {
     const periodLabels = {
@@ -1337,16 +1664,26 @@ function renderTrips() {
           const tripSavingsGas = Math.max(0, tripCostGas - tripCostEv);
           const catKey = trip.category || 'trabajo';
           const catObj = TRIP_CATEGORIES[catKey] || TRIP_CATEGORIES.trabajo;
+          const isSelected = STATE.selectedTripIds.has(trip.id);
+          const isExpanded = STATE.expandedSubTrips.has(trip.id);
 
           return `
-            <div class="trip-compact-row ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="true">
+            <div class="trip-compact-row ${trip.isNew ? 'new-arrival' : ''} ${isSelected ? 'is-selected-group' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="${!STATE.tripGroupMode}">
+              <!-- SELECCIÓN CHECKBOX EN MODO AGRUPAR -->
+              ${STATE.tripGroupMode ? `
+                <div class="trip-select-checkbox-container">
+                  <input type="checkbox" class="trip-select-checkbox" data-id="${trip.id}" ${isSelected ? 'checked' : ''} />
+                </div>
+              ` : ''}
+
               <!-- COLUMNA IZQUIERDA: ICONO + 2 LÍNEAS DE DATOS EN LÍNEA -->
               <div class="compact-left-col">
                 <span class="compact-cat-icon" title="${catObj.label}">${catObj.icon}</span>
                 <div class="compact-text-block">
-                  <!-- LÍNEA 1: TÍTULO Y FECHA EN LÍNEA -->
+                  <!-- LÍNEA 1: TÍTULO, BADGE DE GRUPO Y FECHA EN LÍNEA -->
                   <div class="compact-line-1">
                     <b class="compact-title">${trip.title}</b>
+                    ${trip.isGroup ? `<span class="trip-group-badge" title="Trayecto acumulado de ${trip.subTrips?.length || 0} tramos">🔗 ${trip.subTrips?.length || 0} tramos</span>` : ''}
                     <span class="compact-date">📅 ${trip.date}</span>
                   </div>
                   <!-- LÍNEA 2: MÉTRICAS FÍSICAS EN LÍNEA -->
@@ -1366,8 +1703,12 @@ function renderTrips() {
                   <span class="compact-badge-ev" title="Coste de la carga">${tripCostEv.toFixed(2)} €</span>
                   <span class="compact-badge-save" title="Ahorro frente a gasolina">-${tripSavingsGas.toFixed(2)} €</span>
                 </div>
-                <!-- LÍNEA INFERIOR DERECHA: BOTONES DE ACCIÓN (SUBIR, BAJAR, EDITAR, BORRAR) -->
+                <!-- LÍNEA INFERIOR DERECHA: BOTONES DE ACCIÓN (SUBIR, BAJAR, TRAMOS, DESAGRUPAR, EDITAR, BORRAR) -->
                 <div class="compact-actions">
+                  ${trip.isGroup ? `
+                    <button class="trip-action-btn btn-toggle-subtrips" data-id="${trip.id}" title="${isExpanded ? 'Ocultar tramos' : 'Ver tramos que componen este trayecto'}" type="button">${isExpanded ? '▲' : '▼'}</button>
+                    <button class="trip-action-btn btn-ungroup-trip" data-id="${trip.id}" title="Desagrupar en trayectos individuales" type="button">✂️</button>
+                  ` : ''}
                   <button class="trip-action-btn btn-move-up" data-id="${trip.id}" title="Subir orden" type="button" ${idx === 0 ? 'disabled style="opacity:0.35;"' : ''}>▲</button>
                   <button class="trip-action-btn btn-move-down" data-id="${trip.id}" title="Bajar orden" type="button" ${idx === displayedTrips.length - 1 ? 'disabled style="opacity:0.35;"' : ''}>▼</button>
                   <button class="trip-action-btn btn-edit-trip" data-id="${trip.id}" title="Editar trayecto" type="button">✏️</button>
@@ -1375,36 +1716,11 @@ function renderTrips() {
                 </div>
               </div>
             </div>
+            ${(trip.isGroup && isExpanded) ? renderSubTripsBreakdownHtml(trip) : ''}
           `;
         }).join('')}
       </div>
     `;
-
-    // Event delegation for reordering, editing, and deleting
-    container.onclick = (e) => {
-      const btnEdit = e.target.closest('.btn-edit-trip');
-      const btnDelete = e.target.closest('.btn-delete-trip');
-      const btnUp = e.target.closest('.btn-move-up');
-      const btnDown = e.target.closest('.btn-move-down');
-
-      if (btnEdit) {
-        e.preventDefault();
-        const id = Number(btnEdit.dataset.id);
-        openEditTripModal(id);
-      } else if (btnDelete) {
-        e.preventDefault();
-        const id = Number(btnDelete.dataset.id);
-        deleteTrip(id);
-      } else if (btnUp) {
-        e.preventDefault();
-        const id = Number(btnUp.dataset.id);
-        moveTrip(id, -1);
-      } else if (btnDown) {
-        e.preventDefault();
-        const id = Number(btnDown.dataset.id);
-        moveTrip(id, 1);
-      }
-    };
 
     initTripDragAndDrop();
   } else {
@@ -1418,16 +1734,25 @@ function renderTrips() {
       const tripSavingsDiesel = Math.max(0, tripCostDiesel - tripCostEv);
       const catKey = trip.category || 'trabajo';
       const catObj = TRIP_CATEGORIES[catKey] || TRIP_CATEGORIES.trabajo;
+      const isSelected = STATE.selectedTripIds.has(trip.id);
+      const isExpanded = STATE.expandedSubTrips.has(trip.id);
 
       return `
-        <article class="trip-card ${trip.isNew ? 'new-arrival' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="true">
-          <!-- CABECERA DE LA TARJETA: ÍCONO REORDENAR, TÍTULO, CATEGORÍA Y FECHA -->
+        <article class="trip-card ${trip.isNew ? 'new-arrival' : ''} ${isSelected ? 'is-selected-group' : ''}" id="trip-card-${trip.id}" data-id="${trip.id}" draggable="${!STATE.tripGroupMode}">
+          <!-- CABECERA DE LA TARJETA: CHECKBOX / REORDENAR, TÍTULO, CATEGORÍA Y FECHA -->
           <div class="trip-card-header">
             <div class="trip-header-left">
-              <div class="trip-route-badge reorder-handle" title="Arrastra o usa las flechas para mover" data-id="${trip.id}">⌖</div>
+              ${STATE.tripGroupMode ? `
+                <div class="trip-select-checkbox-container">
+                  <input type="checkbox" class="trip-select-checkbox" data-id="${trip.id}" ${isSelected ? 'checked' : ''} />
+                </div>
+              ` : `
+                <div class="trip-route-badge reorder-handle" title="Arrastra o usa las flechas para mover" data-id="${trip.id}">⌖</div>
+              `}
               <div class="trip-title-block">
                 <div class="trip-title-line">
                   <b class="trip-name">${trip.title}</b>
+                  ${trip.isGroup ? `<span class="trip-group-badge" title="Trayecto acumulado de ${trip.subTrips?.length || 0} tramos">🔗 Combinado (${trip.subTrips?.length || 0} tramos)</span>` : ''}
                   <span class="trip-category-tag ${catKey}">${catObj.icon} ${catObj.label}</span>
                 </div>
                 <div class="trip-time-stamp">
@@ -1438,8 +1763,12 @@ function renderTrips() {
               </div>
             </div>
 
-            <!-- BOTONES DE ACCIÓN (SUBIR, BAJAR, EDITAR, BORRAR) -->
+            <!-- BOTONES DE ACCIÓN (TRAMOS, DESAGRUPAR, SUBIR, BAJAR, EDITAR, BORRAR) -->
             <div class="trip-card-actions">
+              ${trip.isGroup ? `
+                <button class="trip-action-btn btn-toggle-subtrips" data-id="${trip.id}" title="${isExpanded ? 'Ocultar desglose de tramos' : 'Ver tramos que componen este trayecto'}" type="button" style="width:auto; padding:0 8px; font-size:11px;">${isExpanded ? '▲ Tramos' : '▼ Tramos'}</button>
+                <button class="trip-action-btn btn-ungroup-trip" data-id="${trip.id}" title="Desagrupar en trayectos individuales" type="button">✂️</button>
+              ` : ''}
               <button class="trip-action-btn btn-move-up" data-id="${trip.id}" title="Subir orden" type="button" ${idx === 0 ? 'disabled style="opacity:0.35;"' : ''}>▲</button>
               <button class="trip-action-btn btn-move-down" data-id="${trip.id}" title="Bajar orden" type="button" ${idx === displayedTrips.length - 1 ? 'disabled style="opacity:0.35;"' : ''}>▼</button>
               <button class="trip-action-btn btn-edit-trip" data-id="${trip.id}" title="Editar trayecto" type="button">✏️</button>
@@ -1483,38 +1812,77 @@ function renderTrips() {
               </div>
             </div>
           </div>
+
+          <!-- DESGLOSE DE TRAMOS SI ESTÁ EXPANDIDO -->
+          ${(trip.isGroup && isExpanded) ? renderSubTripsBreakdownHtml(trip) : ''}
         </article>
       `;
     }).join('');
 
-    // Event delegation for reordering, editing, and deleting
-    container.onclick = (e) => {
-      const btnEdit = e.target.closest('.btn-edit-trip');
-      const btnDelete = e.target.closest('.btn-delete-trip');
-      const btnUp = e.target.closest('.btn-move-up');
-      const btnDown = e.target.closest('.btn-move-down');
-
-      if (btnEdit) {
-        e.preventDefault();
-        const id = Number(btnEdit.dataset.id);
-        openEditTripModal(id);
-      } else if (btnDelete) {
-        e.preventDefault();
-        const id = Number(btnDelete.dataset.id);
-        deleteTrip(id);
-      } else if (btnUp) {
-        e.preventDefault();
-        const id = Number(btnUp.dataset.id);
-        moveTrip(id, -1);
-      } else if (btnDown) {
-        e.preventDefault();
-        const id = Number(btnDown.dataset.id);
-        moveTrip(id, 1);
-      }
-    };
-
     initTripDragAndDrop();
   }
+
+  // Event delegation unificada para reordenar, editar, borrar, agrupar y desplegar tramos
+  container.onclick = (e) => {
+    const btnEdit = e.target.closest('.btn-edit-trip');
+    const btnDelete = e.target.closest('.btn-delete-trip');
+    const btnUp = e.target.closest('.btn-move-up');
+    const btnDown = e.target.closest('.btn-move-down');
+    const btnToggleSub = e.target.closest('.btn-toggle-subtrips');
+    const btnUngroup = e.target.closest('.btn-ungroup-trip, .btn-ungroup-action');
+    const chkBox = e.target.closest('.trip-select-checkbox');
+
+    if (btnToggleSub) {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = Number(btnToggleSub.dataset.id);
+      toggleSubTripsBreakdown(id);
+      return;
+    }
+
+    if (btnUngroup) {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = Number(btnUngroup.dataset.id);
+      ungroupTrip(id);
+      return;
+    }
+
+    if (chkBox) {
+      e.stopPropagation();
+      const id = Number(chkBox.dataset.id);
+      toggleTripSelection(id);
+      return;
+    }
+
+    if (STATE.tripGroupMode) {
+      const row = e.target.closest('.trip-card, .trip-compact-row');
+      if (row && !btnEdit && !btnDelete && !btnUp && !btnDown && !btnToggleSub && !btnUngroup) {
+        e.preventDefault();
+        const id = Number(row.dataset.id);
+        toggleTripSelection(id);
+        return;
+      }
+    }
+
+    if (btnEdit) {
+      e.preventDefault();
+      const id = Number(btnEdit.dataset.id);
+      openEditTripModal(id);
+    } else if (btnDelete) {
+      e.preventDefault();
+      const id = Number(btnDelete.dataset.id);
+      deleteTrip(id);
+    } else if (btnUp) {
+      e.preventDefault();
+      const id = Number(btnUp.dataset.id);
+      moveTrip(id, -1);
+    } else if (btnDown) {
+      e.preventDefault();
+      const id = Number(btnDown.dataset.id);
+      moveTrip(id, 1);
+    }
+  };
 
   // 3. Render the Impactful SVG Chart
   renderTripsChart();
@@ -2229,13 +2597,18 @@ function initAutoTripRecorder() {
       if (confirm('¿Restablecer el historial de trayectos a los valores iniciales de prueba?')) {
         const baseNow = Date.now();
         STATE.trips = [
-          { id: baseNow - 3600000 * 2, timestamp: baseNow - 3600000 * 2, title: 'Trabajo ➔ Casa', category: 'trabajo', date: formatRealTripDate(new Date(baseNow - 3600000 * 2)), distance: 22.4, energy: 3.1, avgWh: 138, duration: '28 min' },
+          { id: baseNow - 3600000 * 1, timestamp: baseNow - 3600000 * 1, title: 'Trabajo ➔ Supermercado', category: 'trabajo', date: formatRealTripDate(new Date(baseNow - 3600000 * 1)), distance: 18.2, energy: 2.5, avgWh: 137, duration: '22 min' },
+          { id: baseNow - 3600000 * 1.6, timestamp: baseNow - 3600000 * 1.6, title: 'Supermercado ➔ Casa', category: 'compras', date: formatRealTripDate(new Date(baseNow - 3600000 * 1.6)), distance: 12.5, energy: 1.7, avgWh: 136, duration: '18 min' },
           { id: baseNow - 3600000 * 8, timestamp: baseNow - 3600000 * 8, title: 'Casa ➔ Gimnasio', category: 'personal', date: formatRealTripDate(new Date(baseNow - 3600000 * 8)), distance: 8.5, energy: 1.2, avgWh: 141, duration: '12 min' },
           { id: baseNow - 86400000, timestamp: baseNow - 86400000, title: 'Ruta Clientes Centro', category: 'chofer', date: formatRealTripDate(new Date(baseNow - 86400000)), distance: 74.2, energy: 11.2, avgWh: 150, duration: '52 min' },
           { id: baseNow - 86400000 * 3, timestamp: baseNow - 86400000 * 3, title: 'Compras & Supermercado', category: 'compras', date: formatRealTripDate(new Date(baseNow - 86400000 * 3)), distance: 14.8, energy: 1.9, avgWh: 128, duration: '25 min' }
         ];
+        STATE.selectedTripIds.clear();
+        STATE.expandedSubTrips.clear();
+        STATE.tripGroupMode = false;
         localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
         renderTrips();
+        updateCalculations();
         showToast('Historial de trayectos restablecido');
       }
     });
@@ -2251,8 +2624,12 @@ function initAutoTripRecorder() {
       }
       if (confirm('¿Vaciar por completo todo el historial de trayectos registrados?')) {
         STATE.trips = [];
+        STATE.selectedTripIds.clear();
+        STATE.expandedSubTrips.clear();
+        STATE.tripGroupMode = false;
         localStorage.setItem('biguaydi-trips', JSON.stringify([]));
         renderTrips();
+        updateCalculations();
         showToast('🗑️ Historial de trayectos vaciado');
       }
     });
@@ -2345,13 +2722,55 @@ export function closeEditTripModal() {
 export function deleteTrip(id) {
   const trip = STATE.trips.find(t => t.id === id);
   if (!trip) return;
-  const confirmed = window.confirm(`¿Estás seguro de que deseas eliminar el trayecto "${trip.title}" (${trip.distance.toFixed(1)} km)? Esta acción no se puede deshacer.`);
+  const msg = trip.isGroup
+    ? `¿Eliminar este trayecto agrupado (${trip.subTrips?.length || 0} tramos) por completo del historial? Si lo que deseas es mantener los tramos por separado, pulsa Cancelar y usa el botón Desagrupar (✂️).`
+    : `¿Estás seguro de que deseas eliminar el trayecto "${trip.title}" (${trip.distance.toFixed(1)} km)? Esta acción no se puede deshacer.`;
+  const confirmed = window.confirm(msg);
   if (!confirmed) return;
 
   STATE.trips = STATE.trips.filter(t => t.id !== id);
+  STATE.selectedTripIds.delete(id);
+  STATE.expandedSubTrips.delete(id);
   localStorage.setItem('biguaydi-trips', JSON.stringify(STATE.trips));
   renderTrips();
+  updateCalculations();
   showToast('🗑️ Trayecto eliminado');
+}
+
+// Inicializa los listeners de agrupación y barra flotante
+export function initTripGrouping() {
+  const toolBtn = document.getElementById('btn-toggle-trip-group-mode');
+  const headBtn = document.getElementById('btn-group-trips-header');
+  const cancelBtn = document.getElementById('btn-cancel-group-mode');
+  const executeBtn = document.getElementById('btn-execute-group-trips');
+
+  if (toolBtn) {
+    toolBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleTripGroupMode();
+    });
+  }
+
+  if (headBtn) {
+    headBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleTripGroupMode();
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleTripGroupMode(false);
+    });
+  }
+
+  if (executeBtn) {
+    executeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      groupSelectedTrips();
+    });
+  }
 }
 
 // --- ENCRYPTED VAULT INTEGRATION ---
@@ -2981,6 +3400,7 @@ export function initApp() {
   updateCalculations();
   renderTrips();
   initAutoTripRecorder();
+  initTripGrouping();
   initSecurityVault();
   initTractionMonitor();
   initVehicleSectionReorder();

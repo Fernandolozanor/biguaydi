@@ -849,6 +849,9 @@
                 <p>Monitor inteligente de trayectos, costes reales y auditoría de ahorro frente a térmicos.</p>
               </div>
               <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <button class="action-btn" id="btn-group-trips-header" style="padding:8px 14px; font-size:12px;" title="Agrupar trayectos separados por menos de 2h">
+                  🔗 Agrupar
+                </button>
                 <button class="action-btn active" id="btn-simulate-trip" style="padding:8px 14px; font-size:12px;">
                   ⚡ Simular y Probar Trayecto
                 </button>
@@ -1063,6 +1066,12 @@
                 </button>
               </div>
 
+              <!-- BOTÓN MODO AGRUPACIÓN DE TRAYECTOS (< 2H) -->
+              <button type="button" class="trip-group-mode-btn" id="btn-toggle-trip-group-mode" title="Agrupar trayectos separados por menos de 2 horas">
+                <span class="group-btn-icon">🔗</span>
+                <span class="group-btn-text">Agrupar</span>
+              </button>
+
               <!-- SELECTOR DE ORDENACIÓN / ANTIGÜEDAD -->
               <div class="trip-sort-wrapper">
                 <label for="trip-sort-select" class="trip-sort-label">⇅ Orden:</label>
@@ -1090,6 +1099,20 @@
 
           <div id="trips-list">
             <!-- Rendered dynamically by app.js -->
+          </div>
+
+          <!-- FLOATING ACTION BAR FOR TRIP GROUPING -->
+          <div class="trip-group-floating-bar" id="trip-group-floating-bar" style="display:none;">
+            <div class="group-bar-content">
+              <div class="group-bar-info">
+                <span class="group-bar-badge" id="group-bar-count">0 seleccionados</span>
+                <span class="group-bar-status" id="group-bar-status">Selecciona al menos 2 trayectos con separación &lt; 2h</span>
+              </div>
+              <div class="group-bar-actions">
+                <button type="button" class="action-btn" id="btn-cancel-group-mode" style="padding:7px 13px; font-size:12px;">✕ Cancelar</button>
+                <button type="button" class="action-btn active" id="btn-execute-group-trips" disabled style="padding:7px 16px; font-size:12px; opacity:0.4;">✓ Unir en 1 trayecto</button>
+              </div>
+            </div>
           </div>
         </section>
 

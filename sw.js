@@ -1,4 +1,4 @@
-const CACHE = 'biguaydi-v42-tire-layout-spacing-fix';
+const CACHE = 'biguaydi-v43-trip-grouping-ungrouping';
 const ASSETS = [
   './',
   './index.html',
